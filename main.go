@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,18 +14,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FilipFl/logit/prompter"
 	"github.com/spf13/cobra"
 )
 
-const configPath = "~/.logit/config.json"
+const configDirectoryPath = "~/.logit"
+const configFileName = "config.json"
+const configFullPath = configDirectoryPath + "/" + configFileName
+const provideTaskMessage = "Provide task ID or task URL:"
 
 var errorNoJiraTicket = errors.New("no Jira ticket found in passed string")
 var errorNoJiraTicketInFlagValue = errors.New("no Jira ticket found in passed value passed with task flag")
-var errorScanningUserInput = errors.New("error scanning user input")
-var errorWrongApproveInput = errors.New("user input wrong approve command")
 var errorNoTargetToLogWork = errors.New("no target to log work")
 var errorNoSnapshot = errors.New("no start time saved")
 var errorWrongDuration = errors.New("duration to log is invalid")
+
+type contextKey string
+
+const prompterKey contextKey = "prompter"
 
 type Config struct {
 	JiraHost  string            `json:"jira_host"`
@@ -40,10 +47,15 @@ type Worklog struct {
 }
 
 func loadConfig() (*Config, error) {
-	file, err := os.Open(configPath)
+	file, err := os.Open(configFullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &Config{Aliases: make(map[string]string)}, nil
+			config := &Config{Aliases: make(map[string]string)}
+			err := saveConfig(config)
+			if err != nil {
+				return config, err
+			}
+			return config, nil
 		}
 		return nil, err
 	}
@@ -58,7 +70,11 @@ func loadConfig() (*Config, error) {
 }
 
 func saveConfig(config *Config) error {
-	file, err := os.Create(configPath)
+	_, err := os.Stat(configDirectoryPath)
+	if err != nil {
+		os.Mkdir(configDirectoryPath, os.ModeDir)
+	}
+	file, err := os.Create(configFullPath)
 	if err != nil {
 		return err
 	}
@@ -87,6 +103,7 @@ func extractJiraTicket(arg string) (string, error) {
 }
 
 func parseDuration(config Config, cmd *cobra.Command) (time.Duration, error) {
+	prompter := cmd.Context().Value(prompterKey).(prompter.Prompter)
 	result := time.Duration(0)
 	hours, _ := cmd.Flags().GetInt("hours")
 	minutes, _ := cmd.Flags().GetInt("minutes")
@@ -100,7 +117,7 @@ func parseDuration(config Config, cmd *cobra.Command) (time.Duration, error) {
 		result = now.Sub(*config.Snapshot)
 	}
 	if int(result.Hours()) > 8 {
-		proceed, err := promptUserForApprove(fmt.Sprintf("Are You sure you want to log %d hours and %d minutes?", int(result.Hours()), int(result.Minutes())%60))
+		proceed, err := prompter.PromptForApprove(fmt.Sprintf("Are You sure you want to log %d hours and %d minutes?", int(result.Hours()), int(result.Minutes())%60))
 		if err != nil {
 			return time.Duration(0), err
 		}
@@ -110,6 +127,14 @@ func parseDuration(config Config, cmd *cobra.Command) (time.Duration, error) {
 	}
 
 	return time.Duration(0), errorWrongDuration
+}
+
+func promptForTask(prompter prompter.Prompter, msg string) (string, error) {
+	userPromptedMessage, err := prompter.PromptForString(msg, provideTaskMessage)
+	if err != nil {
+		return "", err
+	}
+	return extractJiraTicket(userPromptedMessage)
 }
 
 func logTimeToJira(ticket string, duration time.Duration, comment string, config *Config) error {
@@ -143,41 +168,8 @@ func logTimeToJira(ticket string, duration time.Duration, comment string, config
 	return nil
 }
 
-func promptUserForTask(msg string) (string, error) {
-	fmt.Println(msg)
-	fmt.Print("Provide task ID or task URL:")
-	promptedTask := ""
-	fmt.Scanln(&promptedTask)
-	if promptedTask != "" {
-		return extractJiraTicket(promptedTask)
-	}
-	return "", errorScanningUserInput
-}
-
-func promptUserForApprove(msg string) (bool, error) {
-	fmt.Println(msg)
-	fmt.Print("Proceed? y/n (and hit enter)")
-	promptedApprove := ""
-	fmt.Scanln(&promptedApprove)
-	if promptedApprove != "" {
-		switch promptedApprove {
-		case "y":
-			return true, nil
-		case "Y":
-			return true, nil
-		case "n":
-			return false, nil
-		case "N":
-			return false, nil
-		default:
-			return false, errorWrongApproveInput
-		}
-	}
-	return false, errorWrongApproveInput
-
-}
-
 func determineTask(config Config, cmd *cobra.Command) (string, error) {
+	prompter, _ := cmd.Context().Value(prompterKey).(prompter.Prompter)
 	resultTask := ""
 	task, _ := cmd.Flags().GetString("task")
 	alias, _ := cmd.Flags().GetString("alias")
@@ -192,27 +184,22 @@ func determineTask(config Config, cmd *cobra.Command) (string, error) {
 		if resultTask != "" {
 			return resultTask, nil
 		}
-		userPromptedTask, err := promptUserForTask("There is no jira task in value passed to task flag.")
-		return userPromptedTask, err
-
+		return promptForTask(prompter, "There is no jira task in value passed to task flag.")
 	}
 	gitBranch, err := getGitBranch()
 	if err != nil {
-		userPromptedTask, err := promptUserForTask("Current directory is not a git repository or something failed during branch name extraction.")
-		return userPromptedTask, err
+		return promptForTask(prompter, "Current directory is not a git repository or something failed during branch name extraction.")
 	}
 
 	resultTask, err = extractJiraTicket(gitBranch)
 	if err != nil {
-		userPromptedTask, err := promptUserForTask("Current branch name does not contain task ID.")
-		return userPromptedTask, err
+		return promptForTask(prompter, "Current branch name does not contain task ID.")
 	}
 
-	proceed, err := promptUserForApprove(fmt.Sprintf("Detected task ID %s in current branch name.", resultTask))
+	proceed, err := prompter.PromptForApprove((fmt.Sprintf("Detected task ID %s in current branch name.", resultTask)))
 
 	if err != nil {
-		userPromptedTask, err := promptUserForTask("Error scanning proceed approve.")
-		return userPromptedTask, err
+		return promptForTask(prompter, "Error scanning proceed approve.")
 	}
 
 	if proceed {
@@ -286,7 +273,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			config, _ := loadConfig()
 
-			comment, _ := cmd.Flags().GetString("comment")
+			// comment, _ := cmd.Flags().GetString("comment")
 
 			task, err := determineTask(*config, cmd)
 			if err != nil {
@@ -296,15 +283,16 @@ func main() {
 				fmt.Println("No target for time logging.")
 				return
 			}
-			duration := parseDuration(*config, cmd)
-			fmt.Println(task)
+			duration, err := parseDuration(*config, cmd)
+			fmt.Println("task ", task)
+			fmt.Println("duration ", duration)
 			return
 
-			if err := logTimeToJira(task, duration, comment, config); err != nil {
-				fmt.Println("Error logging time:", err)
-			} else {
-				fmt.Printf("Successfully logged %dh %dm for ticket %s\n", hours, minutes, task)
-			}
+			// if err := logTimeToJira(task, duration, comment, config); err != nil {
+			// 	fmt.Println("Error logging time:", err)
+			// } else {
+			// 	fmt.Printf("Successfully logged %dh %dm for ticket %s\n", hours, minutes, task)
+			// }
 		},
 	}
 
@@ -316,5 +304,8 @@ func main() {
 
 	configCmd.AddCommand(setHostCmd, setTokenCmd, setAliasCmd)
 	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd)
+	prompter := prompter.NewBasicPrompter()
+	ctx := context.WithValue(context.Background(), prompterKey, prompter)
+	rootCmd.SetContext(ctx)
 	rootCmd.Execute()
 }

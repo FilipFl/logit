@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"errors"
-	"os"
 	"testing"
 
+	"github.com/FilipFl/logit/prompter"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,6 +21,9 @@ func TestDetermineTask_WithTaskFlag(t *testing.T) {
 		Aliases: make(map[string]string),
 	}
 	cmd := &cobra.Command{}
+	prompterMock := prompter.NewMockPrompter()
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	cmd.SetContext(ctx)
 	cmd.Flags().String("task", "PROJ-123", "Jira task ID")
 
 	task, err := determineTask(config, cmd)
@@ -33,6 +37,9 @@ func TestDetermineTask_WithTaskFlagAndFullURL(t *testing.T) {
 		Aliases: make(map[string]string),
 	}
 	cmd := &cobra.Command{}
+	prompterMock := prompter.NewMockPrompter()
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	cmd.SetContext(ctx)
 	cmd.Flags().String("task", "https://some-jira.host.com/PROJ-123", "Jira task ID")
 
 	task, err := determineTask(config, cmd)
@@ -46,6 +53,9 @@ func TestDetermineTask_WithAlias(t *testing.T) {
 		Aliases: map[string]string{"bugfix": "BUG-456"},
 	}
 	cmd := &cobra.Command{}
+	prompterMock := prompter.NewMockPrompter()
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	cmd.SetContext(ctx)
 	cmd.Flags().String("alias", "bugfix", "Task alias")
 
 	task, err := determineTask(config, cmd)
@@ -58,14 +68,10 @@ func TestDetermineTask_WithGitBranch(t *testing.T) {
 	getGitBranch = mockGetGitBranch("FEAT-789", nil)
 	config := Config{Aliases: make(map[string]string)}
 	cmd := &cobra.Command{}
-	originalStdin := os.Stdin
-	defer func() { os.Stdin = originalStdin }()
-
-	r, w, _ := os.Pipe()
-	w.Write([]byte("y"))
-	w.Close()
-
-	os.Stdin = r
+	prompterMock := prompter.NewMockPrompter()
+	prompterMock.SetApproveResponses([]bool{true}, []error{nil})
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	cmd.SetContext(ctx)
 	task, err := determineTask(config, cmd)
 
 	assert.NoError(t, err)
@@ -76,14 +82,10 @@ func TestDetermineTask_WithNotOnlyGitBranch(t *testing.T) {
 	getGitBranch = mockGetGitBranch("feature/FEAT-789", nil)
 	config := Config{Aliases: make(map[string]string)}
 	cmd := &cobra.Command{}
-	originalStdin := os.Stdin
-	defer func() { os.Stdin = originalStdin }()
-
-	r, w, _ := os.Pipe()
-	w.Write([]byte("y"))
-	w.Close()
-
-	os.Stdin = r
+	prompterMock := prompter.NewMockPrompter()
+	prompterMock.SetApproveResponses([]bool{true}, []error{nil})
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	cmd.SetContext(ctx)
 	task, err := determineTask(config, cmd)
 
 	assert.NoError(t, err)
@@ -94,7 +96,10 @@ func TestDetermineTask_WithInvalidGitBranch(t *testing.T) {
 	getGitBranch = mockGetGitBranch("invalid-branch", nil)
 	config := Config{Aliases: make(map[string]string)}
 	cmd := &cobra.Command{}
-
+	prompterMock := prompter.NewMockPrompter()
+	prompterMock.SetApproveResponses([]bool{true}, []error{nil})
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	cmd.SetContext(ctx)
 	task, err := determineTask(config, cmd)
 
 	assert.Error(t, err)
@@ -105,15 +110,10 @@ func TestDetermineTask_WithInvalidGitBranchAndPassedTask(t *testing.T) {
 	getGitBranch = mockGetGitBranch("invalid-branch", nil)
 	config := Config{Aliases: make(map[string]string)}
 	cmd := &cobra.Command{}
-	originalStdin := os.Stdin
-	defer func() { os.Stdin = originalStdin }()
-
-	r, w, _ := os.Pipe()
-	w.Write([]byte("PRO-123"))
-	w.Close()
-
-	os.Stdin = r
-
+	prompterMock := prompter.NewMockPrompter()
+	prompterMock.SetStringResponses([]string{"PRO-123"}, []error{nil})
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	cmd.SetContext(ctx)
 	task, err := determineTask(config, cmd)
 
 	assert.NoError(t, err)
@@ -124,8 +124,11 @@ func TestDetermineTask_WithInvalidGitBranchAndPassedTask(t *testing.T) {
 func TestDetermineTask_WithGitError(t *testing.T) {
 	getGitBranch = mockGetGitBranch("", errors.New("Git error")) // Mock Git failure
 	config := Config{Aliases: make(map[string]string)}
-	cmd := &cobra.Command{}
 
+	cmd := &cobra.Command{}
+	prompterMock := prompter.NewMockPrompter()
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	cmd.SetContext(ctx)
 	task, err := determineTask(config, cmd)
 
 	assert.Error(t, err)

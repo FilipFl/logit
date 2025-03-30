@@ -285,11 +285,11 @@ func main() {
 		},
 	}
 
-	logCmd.Flags().IntP("hours", "h", 0, "Hours spent")
+	logCmd.Flags().IntP("hours", "H", 0, "Hours spent")
 	logCmd.Flags().IntP("minutes", "m", 0, "Minutes spent")
 	logCmd.Flags().StringP("comment", "c", "", "Worklog comment")
 	logCmd.Flags().StringP("task", "t", "", "Jira task ID")
-	configCmd.Flags().StringP("alias", "a", "", "Task by alias")
+	logCmd.Flags().StringP("alias", "a", "", "Task by alias")
 
 	configCmd.AddCommand(setHostCmd, setTokenCmd, setAliasCmd)
 	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd)

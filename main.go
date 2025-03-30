@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -21,8 +21,10 @@ const configPath = "~/.logit/config.json"
 var errorNoJiraTicket = errors.New("no Jira ticket found in passed string")
 var errorNoJiraTicketInFlagValue = errors.New("no Jira ticket found in passed value passed with task flag")
 var errorScanningUserInput = errors.New("error scanning user input")
-var errorWrongApproveInput = errors.New("user input wrong approve message")
+var errorWrongApproveInput = errors.New("user input wrong approve command")
 var errorNoTargetToLogWork = errors.New("no target to log work")
+var errorNoSnapshot = errors.New("no start time saved")
+var errorWrongDuration = errors.New("duration to log is invalid")
 
 type Config struct {
 	JiraHost  string            `json:"jira_host"`
@@ -84,8 +86,30 @@ func extractJiraTicket(arg string) (string, error) {
 	return "", errorNoJiraTicket
 }
 
-func parseDuration(config Config, cmd *cobra.Command) time.Duration {
-	return time.Duration(1) * time.Hour
+func parseDuration(config Config, cmd *cobra.Command) (time.Duration, error) {
+	result := time.Duration(0)
+	hours, _ := cmd.Flags().GetInt("hours")
+	minutes, _ := cmd.Flags().GetInt("minutes")
+	if hours != 0 || minutes != 0 {
+		result = time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute
+	} else {
+		if config.Snapshot == nil {
+			return time.Duration(0), errorNoSnapshot
+		}
+		now := time.Now()
+		result = now.Sub(*config.Snapshot)
+	}
+	if int(result.Hours()) > 8 {
+		proceed, err := promptUserForApprove(fmt.Sprintf("Are You sure you want to log %d hours and %d minutes?", int(result.Hours()), int(result.Minutes())%60))
+		if err != nil {
+			return time.Duration(0), err
+		}
+		if proceed {
+			return result, nil
+		}
+	}
+
+	return time.Duration(0), errorWrongDuration
 }
 
 func logTimeToJira(ticket string, duration time.Duration, comment string, config *Config) error {
@@ -112,7 +136,7 @@ func logTimeToJira(ticket string, duration time.Duration, comment string, config
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("failed to log time: %s", string(body))
 	}
 
@@ -252,7 +276,7 @@ func main() {
 			now := time.Now()
 			config.Snapshot = &now
 			saveConfig(config)
-			fmt.Printf("Alias %s set for ticket %s\n", args[0], args[1])
+			fmt.Println("Started to measure time.")
 		},
 	}
 
@@ -261,8 +285,7 @@ func main() {
 		Short: "Log time to Jira",
 		Run: func(cmd *cobra.Command, args []string) {
 			config, _ := loadConfig()
-			hours, _ := cmd.Flags().GetInt("hours")
-			minutes, _ := cmd.Flags().GetInt("minutes")
+
 			comment, _ := cmd.Flags().GetString("comment")
 
 			task, err := determineTask(*config, cmd)
@@ -273,9 +296,9 @@ func main() {
 				fmt.Println("No target for time logging.")
 				return
 			}
+			duration := parseDuration(*config, cmd)
 			fmt.Println(task)
 			return
-			duration := parseDuration(*config, cmd)
 
 			if err := logTimeToJira(task, duration, comment, config); err != nil {
 				fmt.Println("Error logging time:", err)

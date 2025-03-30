@@ -54,9 +54,8 @@ func TestDetermineTask_WithAlias(t *testing.T) {
 	assert.Equal(t, "BUG-456", task)
 }
 
-// Test when Git branch contains task ID
 func TestDetermineTask_WithGitBranch(t *testing.T) {
-	getGitBranch = mockGetGitBranch("FEAT-789", nil) // Mocking Git branch
+	getGitBranch = mockGetGitBranch("FEAT-789", nil)
 	config := Config{Aliases: make(map[string]string)}
 	cmd := &cobra.Command{}
 	originalStdin := os.Stdin
@@ -74,7 +73,7 @@ func TestDetermineTask_WithGitBranch(t *testing.T) {
 }
 
 func TestDetermineTask_WithNotOnlyGitBranch(t *testing.T) {
-	getGitBranch = mockGetGitBranch("feature/FEAT-789", nil) // Mocking Git branch
+	getGitBranch = mockGetGitBranch("feature/FEAT-789", nil)
 	config := Config{Aliases: make(map[string]string)}
 	cmd := &cobra.Command{}
 	originalStdin := os.Stdin
@@ -92,7 +91,7 @@ func TestDetermineTask_WithNotOnlyGitBranch(t *testing.T) {
 }
 
 func TestDetermineTask_WithInvalidGitBranch(t *testing.T) {
-	getGitBranch = mockGetGitBranch("invalid-branch", nil) // Mocking Git branch
+	getGitBranch = mockGetGitBranch("invalid-branch", nil)
 	config := Config{Aliases: make(map[string]string)}
 	cmd := &cobra.Command{}
 
@@ -103,7 +102,7 @@ func TestDetermineTask_WithInvalidGitBranch(t *testing.T) {
 }
 
 func TestDetermineTask_WithInvalidGitBranchAndPassedTask(t *testing.T) {
-	getGitBranch = mockGetGitBranch("invalid-branch", nil) // Mocking Git branch
+	getGitBranch = mockGetGitBranch("invalid-branch", nil)
 	config := Config{Aliases: make(map[string]string)}
 	cmd := &cobra.Command{}
 	originalStdin := os.Stdin

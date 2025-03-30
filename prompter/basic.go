@@ -35,7 +35,6 @@ func (p *BasicPrompter) PromptForApprove(msg string) (bool, error) {
 
 func (p *BasicPrompter) PromptForString(infoMsg, promptMsg string) (string, error) {
 	fmt.Println(infoMsg)
-	// fmt.Print("Provide task ID or task URL:")
 	fmt.Println(promptMsg)
 	promptedTask := ""
 	fmt.Scanln(&promptedTask)

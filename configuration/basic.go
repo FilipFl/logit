@@ -1,4 +1,4 @@
-package config
+package configuration
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ type BasicConfigurationHandler struct {
 	cfgFilePath string
 }
 
-func NewBasicConfig() *BasicConfigurationHandler {
+func NewBasicConfigurationHandler() *BasicConfigurationHandler {
 	dirname, err := os.UserHomeDir()
 	if err != nil {
 		panic(fmt.Sprintf("Can't retrieve home directory. You're doomed. Reason: %s", err))
@@ -48,12 +48,12 @@ func NewBasicConfig() *BasicConfigurationHandler {
 	return basicConfig
 }
 
-func (c *BasicConfigurationHandler) LoadConfig() *Config {
-	return c.cfg
+func (h *BasicConfigurationHandler) LoadConfig() *Config {
+	return h.cfg
 }
 
-func (c *BasicConfigurationHandler) SaveConfig(config *Config) error {
-	file, err := os.Create(c.cfgFilePath)
+func (h *BasicConfigurationHandler) SaveConfig(config *Config) error {
+	file, err := os.Create(h.cfgFilePath)
 	if err != nil {
 		return err
 	}
@@ -64,6 +64,6 @@ func (c *BasicConfigurationHandler) SaveConfig(config *Config) error {
 	if err != nil {
 		return err
 	}
-	c.cfg = config
+	h.cfg = config
 	return nil
 }

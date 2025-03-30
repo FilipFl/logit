@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +17,12 @@ import (
 )
 
 const configPath = "~/.logit/config.json"
+
+var errorNoJiraTicket = errors.New("no Jira ticket found in passed string")
+var errorNoJiraTicketInFlagValue = errors.New("no Jira ticket found in passed value passed with task flag")
+var errorScanningUserInput = errors.New("error scanning user input")
+var errorWrongApproveInput = errors.New("user input wrong approve message")
+var errorNoTargetToLogWork = errors.New("no target to log work")
 
 type Config struct {
 	JiraHost  string            `json:"jira_host"`
@@ -59,7 +66,7 @@ func saveConfig(config *Config) error {
 	return encoder.Encode(config)
 }
 
-func getGitBranch() (string, error) {
+var getGitBranch = func() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 	output, err := cmd.Output()
 	if err != nil {
@@ -68,17 +75,17 @@ func getGitBranch() (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-func extractJiraTicket(branch string) (string, error) {
+func extractJiraTicket(arg string) (string, error) {
 	re := regexp.MustCompile(`([A-Z]+-\d+)`)
-	matches := re.FindStringSubmatch(branch)
+	matches := re.FindStringSubmatch(arg)
 	if len(matches) > 1 {
 		return matches[1], nil
 	}
-	return "", fmt.Errorf("no Jira ticket found in branch")
+	return "", errorNoJiraTicket
 }
 
-func parseDuration(hours, minutes int) time.Duration {
-	return time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute
+func parseDuration(config Config, cmd *cobra.Command) time.Duration {
+	return time.Duration(1) * time.Hour
 }
 
 func logTimeToJira(ticket string, duration time.Duration, comment string, config *Config) error {
@@ -110,6 +117,85 @@ func logTimeToJira(ticket string, duration time.Duration, comment string, config
 	}
 
 	return nil
+}
+
+func promptUserForTask(msg string) (string, error) {
+	fmt.Println(msg)
+	fmt.Print("Provide task ID or task URL:")
+	promptedTask := ""
+	fmt.Scanln(&promptedTask)
+	if promptedTask != "" {
+		return extractJiraTicket(promptedTask)
+	}
+	return "", errorScanningUserInput
+}
+
+func promptUserForApprove(msg string) (bool, error) {
+	fmt.Println(msg)
+	fmt.Print("Proceed? y/n (and hit enter)")
+	promptedApprove := ""
+	fmt.Scanln(&promptedApprove)
+	if promptedApprove != "" {
+		switch promptedApprove {
+		case "y":
+			return true, nil
+		case "Y":
+			return true, nil
+		case "n":
+			return false, nil
+		case "N":
+			return false, nil
+		default:
+			return false, errorWrongApproveInput
+		}
+	}
+	return false, errorWrongApproveInput
+
+}
+
+func determineTask(config Config, cmd *cobra.Command) (string, error) {
+	resultTask := ""
+	task, _ := cmd.Flags().GetString("task")
+	alias, _ := cmd.Flags().GetString("alias")
+	if resultTask, exists := config.Aliases[alias]; exists {
+		return resultTask, nil
+	}
+	if task != "" {
+		resultTask, err := extractJiraTicket(task)
+		if err != nil {
+			return "", errorNoJiraTicketInFlagValue
+		}
+		if resultTask != "" {
+			return resultTask, nil
+		}
+		userPromptedTask, err := promptUserForTask("There is no jira task in value passed to task flag.")
+		return userPromptedTask, err
+
+	}
+	gitBranch, err := getGitBranch()
+	if err != nil {
+		userPromptedTask, err := promptUserForTask("Current directory is not a git repository or something failed during branch name extraction.")
+		return userPromptedTask, err
+	}
+
+	resultTask, err = extractJiraTicket(gitBranch)
+	if err != nil {
+		userPromptedTask, err := promptUserForTask("Current branch name does not contain task ID.")
+		return userPromptedTask, err
+	}
+
+	proceed, err := promptUserForApprove(fmt.Sprintf("Detected task ID %s in current branch name.", resultTask))
+
+	if err != nil {
+		userPromptedTask, err := promptUserForTask("Error scanning proceed approve.")
+		return userPromptedTask, err
+	}
+
+	if proceed {
+		return resultTask, nil
+	}
+
+	return "", errorNoTargetToLogWork
 }
 
 func main() {
@@ -152,6 +238,20 @@ func main() {
 			config, _ := loadConfig()
 			config.Aliases[args[0]] = args[1]
 			saveConfig(config)
+
+			fmt.Printf("Alias %s set for ticket %s\n", args[0], args[1])
+		},
+	}
+
+	var startTimerCmd = &cobra.Command{
+		Use:   "start",
+		Short: "Start measuring time from this moment",
+		Args:  nil,
+		Run: func(cmd *cobra.Command, args []string) {
+			config, _ := loadConfig()
+			now := time.Now()
+			config.Snapshot = &now
+			saveConfig(config)
 			fmt.Printf("Alias %s set for ticket %s\n", args[0], args[1])
 		},
 	}
@@ -164,18 +264,23 @@ func main() {
 			hours, _ := cmd.Flags().GetInt("hours")
 			minutes, _ := cmd.Flags().GetInt("minutes")
 			comment, _ := cmd.Flags().GetString("comment")
-			ticket, _ := cmd.Flags().GetString("ticket")
-			alias, _ := cmd.Flags().GetString("alias")
 
-			if alias, exists := config.Aliases[alias]; exists {
-				ticket = alias
+			task, err := determineTask(*config, cmd)
+			if err != nil {
+				fmt.Println("Error logging time: ", err)
 			}
+			if task == "" {
+				fmt.Println("No target for time logging.")
+				return
+			}
+			fmt.Println(task)
+			return
+			duration := parseDuration(*config, cmd)
 
-			duration := parseDuration(hours, minutes)
-			if err := logTimeToJira(ticket, duration, comment, config); err != nil {
+			if err := logTimeToJira(task, duration, comment, config); err != nil {
 				fmt.Println("Error logging time:", err)
 			} else {
-				fmt.Printf("Successfully logged %dh %dm for ticket %s\n", hours, minutes, ticket)
+				fmt.Printf("Successfully logged %dh %dm for ticket %s\n", hours, minutes, task)
 			}
 		},
 	}
@@ -183,10 +288,10 @@ func main() {
 	logCmd.Flags().IntP("hours", "h", 0, "Hours spent")
 	logCmd.Flags().IntP("minutes", "m", 0, "Minutes spent")
 	logCmd.Flags().StringP("comment", "c", "", "Worklog comment")
-	logCmd.Flags().StringP("ticket", "t", "", "Jira ticket ID")
-	logCmd.Flags().StringP("alias", "a", "", "Task by alias")
+	logCmd.Flags().StringP("task", "t", "", "Jira task ID")
+	configCmd.Flags().StringP("alias", "a", "", "Task by alias")
 
 	configCmd.AddCommand(setHostCmd, setTokenCmd, setAliasCmd)
-	rootCmd.AddCommand(configCmd, logCmd)
+	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd)
 	rootCmd.Execute()
 }

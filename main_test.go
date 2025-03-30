@@ -33,6 +33,38 @@ func TestDetermineTask_WithTaskFlag(t *testing.T) {
 	assert.Equal(t, "PROJ-123", task)
 }
 
+func TestDetermineTask_WithTaskFlagPassedBadAndPromptedProperly(t *testing.T) {
+	prompterMock := prompter.NewMockPrompter()
+	prompterMock.SetStringResponses([]string{"PROJ-123"}, []error{nil})
+	configurationHandlerMock := configuration.NewMockConfigurationHandler()
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
+	cmd := &cobra.Command{}
+	cmd.SetContext(ctx)
+	cmd.Flags().String("task", "not a task", "Jira task ID")
+
+	task, err := determineTask(cmd)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "PROJ-123", task)
+}
+
+func TestDetermineTask_WithTaskFlagPassedProperlyAndPromptedBad(t *testing.T) {
+	prompterMock := prompter.NewMockPrompter()
+	prompterMock.SetStringResponses([]string{"also not a task"}, []error{nil})
+	configurationHandlerMock := configuration.NewMockConfigurationHandler()
+	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
+	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
+	cmd := &cobra.Command{}
+	cmd.SetContext(ctx)
+	cmd.Flags().String("task", "not a task", "Jira task ID")
+
+	task, err := determineTask(cmd)
+
+	assert.Error(t, err)
+	assert.Equal(t, "", task)
+}
+
 func TestDetermineTask_WithTaskFlagAndFullURL(t *testing.T) {
 	prompterMock := prompter.NewMockPrompter()
 	configurationHandlerMock := configuration.NewMockConfigurationHandler()

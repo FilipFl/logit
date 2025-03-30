@@ -150,10 +150,7 @@ func determineTask(cmd *cobra.Command) (string, error) {
 
 	if task != "" {
 		resultTask, err := extractJiraTicket(task)
-		if err != nil {
-			return "", errorNoJiraTicketInFlagValue
-		}
-		if resultTask != "" {
+		if err == nil {
 			return resultTask, nil
 		}
 		return promptForTask(prompter, "There is no jira task in value passed to task flag.")

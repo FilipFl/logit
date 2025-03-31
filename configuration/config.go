@@ -5,6 +5,7 @@ import "time"
 type Config struct {
 	JiraHost  string            `json:"jira_host"`
 	JiraToken string            `json:"jira_token"`
+	JiraEmail string            `json:"jira_email"`
 	Aliases   map[string]string `json:"aliases"`
 	Snapshot  *time.Time        `json:"snapshot"`
 }

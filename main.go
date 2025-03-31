@@ -21,7 +21,6 @@ import (
 const provideTaskMessage = "Provide task ID or task URL:"
 
 var errorNoJiraTicket = errors.New("no Jira ticket found in passed string")
-var errorNoJiraTicketInFlagValue = errors.New("no Jira ticket found in passed value passed with task flag")
 var errorNoTargetToLogWork = errors.New("no target to log work")
 var errorNoSnapshot = errors.New("no start time saved")
 var errorWrongDuration = errors.New("duration to log is invalid")
@@ -55,36 +54,6 @@ func extractJiraTicket(arg string) (string, error) {
 	return "", errorNoJiraTicket
 }
 
-func parseDuration(cmd *cobra.Command) (time.Duration, error) {
-	prompter := cmd.Context().Value(prompterKey).(prompter.Prompter)
-	configurationHandler, _ := cmd.Context().Value(configKey).(configuration.ConfigurationHandler)
-	result := time.Duration(0)
-	hours, _ := cmd.Flags().GetInt("hours")
-	minutes, _ := cmd.Flags().GetInt("minutes")
-	if hours != 0 || minutes != 0 {
-		result = time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute
-	} else {
-		if configurationHandler.LoadConfig().Snapshot == nil {
-			return time.Duration(0), errorNoSnapshot
-		}
-		now := time.Now()
-		result = now.Sub(*configurationHandler.LoadConfig().Snapshot)
-	}
-	if int(result.Hours()) > 8 {
-		proceed, err := prompter.PromptForApprove(fmt.Sprintf("Are You sure you want to log %d hours and %d minutes?", int(result.Hours()), int(result.Minutes())%60))
-		if err != nil {
-			return time.Duration(0), err
-		}
-		if proceed {
-			return result, nil
-		} else {
-			return time.Duration(0), errorWrongDuration
-		}
-	}
-
-	return result, nil
-}
-
 func promptForTask(prompter prompter.Prompter, msg string) (string, error) {
 	userPromptedMessage, err := prompter.PromptForString(msg, provideTaskMessage)
 	if err != nil {
@@ -95,7 +64,7 @@ func promptForTask(prompter prompter.Prompter, msg string) (string, error) {
 
 func logTimeToJira(ticket string, duration time.Duration, comment string, cfg *configuration.Config) error {
 	timeSpent := fmt.Sprintf("%dh %dm", int(duration.Hours()), int(duration.Minutes())%60)
-	url := fmt.Sprintf("%s/rest/api/2/issue/%s/worklog", cfg.JiraHost, ticket)
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s/worklog", cfg.JiraHost, ticket)
 	worklog := Worklog{
 		TimeSpent: timeSpent,
 		Started:   time.Now().Format("2006-01-02T15:04:05.000-0700"),
@@ -108,7 +77,7 @@ func logTimeToJira(ticket string, duration time.Duration, comment string, cfg *c
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.SetBasicAuth("", cfg.JiraToken)
+	req.SetBasicAuth(cfg.JiraEmail, cfg.JiraToken)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -178,12 +147,47 @@ func determineTask(cmd *cobra.Command) (string, error) {
 	return "", errorNoTargetToLogWork
 }
 
+func parseDuration(cmd *cobra.Command) (time.Duration, error) {
+	prompter := cmd.Context().Value(prompterKey).(prompter.Prompter)
+	configurationHandler, _ := cmd.Context().Value(configKey).(configuration.ConfigurationHandler)
+	result := time.Duration(0)
+	hours, _ := cmd.Flags().GetInt("hours")
+	minutes, _ := cmd.Flags().GetInt("minutes")
+	if hours != 0 || minutes != 0 {
+		result = time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute
+	} else {
+		if configurationHandler.LoadConfig().Snapshot == nil {
+			return time.Duration(0), errorNoSnapshot
+		}
+		now := time.Now()
+		result = now.Sub(*configurationHandler.LoadConfig().Snapshot)
+	}
+	if int(result.Hours()) > 8 {
+		proceed, err := prompter.PromptForApprove(fmt.Sprintf("Are You sure you want to log %d hours and %d minutes?", int(result.Hours()), int(result.Minutes())%60))
+		if err != nil {
+			return time.Duration(0), err
+		}
+		if proceed {
+			return result, nil
+		} else {
+			return time.Duration(0), errorWrongDuration
+		}
+	}
+
+	return result, nil
+}
+
 func main() {
 	var rootCmd = &cobra.Command{Use: "logit"}
 
 	var configCmd = &cobra.Command{
 		Use:   "config",
 		Short: "Set Jira configuration",
+	}
+
+	var aliasCmd = &cobra.Command{
+		Use:   "alias",
+		Short: "Manage aliases",
 	}
 
 	var setHostCmd = &cobra.Command{
@@ -213,16 +217,52 @@ func main() {
 	}
 
 	var setAliasCmd = &cobra.Command{
-		Use:   "set-alias [alias] [ticket]",
+		Use:   "set [alias] [ticket]",
 		Short: "Set an alias for a Jira ticket",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			configHandler := cmd.Context().Value(configKey).(configuration.ConfigurationHandler)
 			cfg := configHandler.LoadConfig()
-			cfg.Aliases[args[0]] = args[1]
+			ticket, err := extractJiraTicket(args[1])
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			cfg.Aliases[args[0]] = ticket
 			configHandler.SaveConfig(cfg)
 
 			fmt.Printf("Alias %s set for ticket %s\n", args[0], args[1])
+		},
+	}
+
+	var removeAliasCmd = &cobra.Command{
+		Use:   "remove [alias]",
+		Short: "Remove an alias from aliases list",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			configHandler := cmd.Context().Value(configKey).(configuration.ConfigurationHandler)
+			cfg := configHandler.LoadConfig()
+			if _, exists := cfg.Aliases[args[0]]; exists {
+				delete(cfg.Aliases, args[0])
+				configHandler.SaveConfig(cfg)
+				fmt.Printf("Removed alias %s from aliases list\n", args[0])
+				return
+			}
+
+			fmt.Printf("Alias %s not found on aliases list\n", args[0])
+		},
+	}
+
+	var listAliasesCmd = &cobra.Command{
+		Use:   "list",
+		Short: "Lists all aliases",
+		Args:  nil,
+		Run: func(cmd *cobra.Command, args []string) {
+			configHandler := cmd.Context().Value(configKey).(configuration.ConfigurationHandler)
+			cfg := configHandler.LoadConfig()
+			for k, v := range cfg.Aliases {
+				fmt.Printf("%s: %s \n", k, v)
+			}
 		},
 	}
 
@@ -277,8 +317,9 @@ func main() {
 	logCmd.Flags().StringP("task", "t", "", "Jira task ID")
 	logCmd.Flags().StringP("alias", "a", "", "Task by alias")
 
-	configCmd.AddCommand(setHostCmd, setTokenCmd, setAliasCmd)
-	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd)
+	configCmd.AddCommand(setHostCmd, setTokenCmd)
+	aliasCmd.AddCommand(setAliasCmd, listAliasesCmd, removeAliasCmd)
+	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd, aliasCmd)
 	prompter := prompter.NewBasicPrompter()
 	config := configuration.NewBasicConfigurationHandler()
 	ctx := context.WithValue(context.Background(), prompterKey, prompter)

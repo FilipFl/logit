@@ -1,50 +1,17 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/FilipFl/logit/configuration"
+	"github.com/FilipFl/logit/git"
 	"github.com/FilipFl/logit/prompter"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
-
-func mockGetGitBranch(branch string, err error) func() (string, error) {
-	return func() (string, error) {
-		return branch, err
-	}
-}
-
-func setupTestContext(prompterMock *prompter.MockPrompter, configMock *configuration.MockConfigurationHandler) context.Context {
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	return context.WithValue(ctx, configKey, configMock)
-}
-
-func setupTestCommand(ctx context.Context) *cobra.Command {
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	return cmd
-}
-
-func setupTestWithMocks(prompterResponses []string, prompterErrors []error, prompterApproveResponses []bool, prompterApproveErrors []error, config *configuration.Config) (*cobra.Command, *prompter.MockPrompter) {
-	prompterMock := prompter.NewMockPrompter()
-	prompterMock.SetStringResponses(prompterResponses, prompterErrors)
-	prompterMock.SetApproveResponses(prompterApproveResponses, prompterApproveErrors)
-
-	configMock := configuration.NewMockConfigurationHandler()
-	if config != nil {
-		configMock.SetConfig(config)
-	}
-
-	ctx := setupTestContext(prompterMock, configMock)
-	cmd := setupTestCommand(ctx)
-
-	return cmd, prompterMock
-}
 
 func TestDetermineTask(t *testing.T) {
 	tests := []struct {
@@ -145,9 +112,27 @@ func TestDetermineTask(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			getGitBranch = mockGetGitBranch(tc.gitBranch, tc.gitError)
+			cfgHandlerMock := configuration.NewMockConfigurationHandler()
+			if tc.config != nil {
+				cfgHandlerMock.SetConfig(tc.config)
+			}
+			prompterMock := prompter.NewMockPrompter()
+			if tc.prompterResponses != nil {
+				prompterMock.SetStringResponses(tc.prompterResponses, tc.prompterErrors)
+			}
+			if tc.prompterApproveResponses != nil {
+				prompterMock.SetApproveResponses(tc.prompterApproveResponses, tc.prompterApproveErrors)
+			}
+			gitHandlerMock := git.NewMockGitHandler()
+			if tc.gitBranch != "" {
+				gitHandlerMock.Branch = tc.gitBranch
+				gitHandlerMock.Error = nil
+			} else if tc.gitError != nil {
+				gitHandlerMock.Branch = ""
+				gitHandlerMock.Error = tc.gitError
+			}
 
-			cmd, _ := setupTestWithMocks(tc.prompterResponses, tc.prompterErrors, tc.prompterApproveResponses, tc.prompterApproveErrors, tc.config)
+			cmd := &cobra.Command{}
 
 			if tc.taskFlag != "" {
 				cmd.Flags().String("task", tc.taskFlag, "Jira task ID")
@@ -156,7 +141,7 @@ func TestDetermineTask(t *testing.T) {
 				cmd.Flags().String("alias", tc.aliasFlag, "Task alias")
 			}
 
-			task, err := determineTask(cmd)
+			task, err := determineTask(cmd, cfgHandlerMock, prompterMock, gitHandlerMock)
 
 			if tc.expectError {
 				assert.Error(t, err)
@@ -207,9 +192,18 @@ func TestParseDuration(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-
-			cmd, _ := setupTestWithMocks(tc.prompterResponses, tc.prompterErrors, tc.prompterApproveResponses, tc.prompterApproveErrors, tc.config)
-
+			cfgHandlerMock := configuration.NewMockConfigurationHandler()
+			if tc.config != nil {
+				cfgHandlerMock.SetConfig(tc.config)
+			}
+			prompterMock := prompter.NewMockPrompter()
+			if tc.prompterResponses != nil {
+				prompterMock.SetStringResponses(tc.prompterResponses, tc.prompterErrors)
+			}
+			if tc.prompterApproveResponses != nil {
+				prompterMock.SetApproveResponses(tc.prompterApproveResponses, tc.prompterApproveErrors)
+			}
+			cmd := &cobra.Command{}
 			if tc.hours != 0 {
 				cmd.Flags().Int("hours", tc.hours, "Hours spent")
 			}
@@ -217,7 +211,7 @@ func TestParseDuration(t *testing.T) {
 				cmd.Flags().Int("minutes", tc.minutes, "Minutes spent")
 			}
 
-			result, err := parseDuration(cmd)
+			result, err := parseDuration(cmd, cfgHandlerMock, prompterMock)
 
 			if tc.expectError {
 				assert.Error(t, err)

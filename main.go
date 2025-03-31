@@ -24,6 +24,8 @@ var errorNoJiraTicket = errors.New("no Jira ticket found in passed string")
 var errorNoTargetToLogWork = errors.New("no target to log work")
 var errorNoSnapshot = errors.New("no start time saved")
 var errorWrongDuration = errors.New("duration to log is invalid")
+var errorEmailNotConfigured = errors.New("before trying to log work configure email")
+var errorTokenNotConfigured = errors.New("before trying to log work configure Jira token")
 
 type contextKey string
 
@@ -60,37 +62,6 @@ func promptForTask(prompter prompter.Prompter, msg string) (string, error) {
 		return "", err
 	}
 	return extractJiraTicket(userPromptedMessage)
-}
-
-func logTimeToJira(ticket string, duration time.Duration, comment string, cfg *configuration.Config) error {
-	timeSpent := fmt.Sprintf("%dh %dm", int(duration.Hours()), int(duration.Minutes())%60)
-	url := fmt.Sprintf("%s/rest/api/3/issue/%s/worklog", cfg.JiraHost, ticket)
-	worklog := Worklog{
-		TimeSpent: timeSpent,
-		Started:   time.Now().Format("2006-01-02T15:04:05.000-0700"),
-		Comment:   comment,
-	}
-	jsonData, _ := json.Marshal(worklog)
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.SetBasicAuth(cfg.JiraEmail, cfg.JiraToken)
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to log time: %s", string(body))
-	}
-
-	return nil
 }
 
 func determineTask(cmd *cobra.Command) (string, error) {
@@ -177,6 +148,47 @@ func parseDuration(cmd *cobra.Command) (time.Duration, error) {
 	return result, nil
 }
 
+func logTimeToJira(ticket string, duration time.Duration, comment string, cfgHandler configuration.ConfigurationHandler) error {
+	cfg := cfgHandler.LoadConfig()
+	timeSpent := fmt.Sprintf("%dh %dm", int(duration.Hours()), int(duration.Minutes())%60)
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s/worklog", cfg.JiraHost, ticket)
+	worklog := Worklog{
+		TimeSpent: timeSpent,
+		Started:   time.Now().Format("2006-01-02T15:04:05.000-0700"),
+		Comment:   comment,
+	}
+	jsonData, _ := json.Marshal(worklog)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	token := cfgHandler.GetToken()
+
+	if cfg.JiraEmail == "" {
+		return errorEmailNotConfigured
+	}
+	if token == "" {
+		return errorTokenNotConfigured
+	}
+
+	req.SetBasicAuth(cfg.JiraEmail, token)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to log time: %s", string(body))
+	}
+
+	return nil
+}
+
 func main() {
 	var rootCmd = &cobra.Command{Use: "logit"}
 
@@ -213,6 +225,31 @@ func main() {
 			cfg.JiraToken = args[0]
 			configHandler.SaveConfig(cfg)
 			fmt.Println("Jira token updated.")
+		},
+	}
+	var setTokenEnvNameCmd = &cobra.Command{
+		Use:   "set-token-env-name [name]",
+		Short: "Set name of environmental variable which holds Jira token",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			configHandler := cmd.Context().Value(configKey).(configuration.ConfigurationHandler)
+			cfg := configHandler.LoadConfig()
+			cfg.JiraTokenEnvName = args[0]
+			configHandler.SaveConfig(cfg)
+			fmt.Println("Name of environmental variable holding Jira token updated.")
+		},
+	}
+
+	var setEmailCmd = &cobra.Command{
+		Use:   "set-email [email]",
+		Short: "Set Jira user email",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			configHandler := cmd.Context().Value(configKey).(configuration.ConfigurationHandler)
+			cfg := configHandler.LoadConfig()
+			cfg.JiraEmail = args[0]
+			configHandler.SaveConfig(cfg)
+			fmt.Println("Jira user email updated.")
 		},
 	}
 
@@ -317,7 +354,7 @@ func main() {
 	logCmd.Flags().StringP("task", "t", "", "Jira task ID")
 	logCmd.Flags().StringP("alias", "a", "", "Task by alias")
 
-	configCmd.AddCommand(setHostCmd, setTokenCmd)
+	configCmd.AddCommand(setHostCmd, setTokenCmd, setEmailCmd, setTokenEnvNameCmd)
 	aliasCmd.AddCommand(setAliasCmd, listAliasesCmd, removeAliasCmd)
 	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd, aliasCmd)
 	prompter := prompter.NewBasicPrompter()

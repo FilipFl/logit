@@ -8,10 +8,12 @@ type MockConfigurationHandler struct {
 func NewMockConfigurationHandler() *MockConfigurationHandler {
 	return &MockConfigurationHandler{
 		cfg: &Config{
-			JiraHost:  "",
-			JiraToken: "",
-			Aliases:   map[string]string{},
-			Snapshot:  nil,
+			JiraHost:         "",
+			JiraToken:        "",
+			JiraEmail:        "",
+			JiraTokenEnvName: "",
+			Aliases:          map[string]string{},
+			Snapshot:         nil,
 		},
 		err: nil,
 	}
@@ -33,4 +35,8 @@ func (h *MockConfigurationHandler) SetConfig(cfg *Config) {
 func (h *MockConfigurationHandler) SetError(err error) {
 	h.err = err
 	return
+}
+
+func (h *MockConfigurationHandler) GetToken() string {
+	return h.cfg.JiraToken
 }

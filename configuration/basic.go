@@ -67,3 +67,10 @@ func (h *BasicConfigurationHandler) SaveConfig(config *Config) error {
 	h.cfg = config
 	return nil
 }
+
+func (h *BasicConfigurationHandler) GetToken() string {
+	if h.cfg.JiraTokenEnvName != "" {
+		return os.Getenv(h.cfg.JiraTokenEnvName)
+	}
+	return h.cfg.JiraToken
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/FilipFl/logit/configuration"
 	"github.com/FilipFl/logit/prompter"
@@ -18,195 +19,213 @@ func mockGetGitBranch(branch string, err error) func() (string, error) {
 	}
 }
 
-func TestDetermineTask_WithTaskFlag(t *testing.T) {
-	prompterMock := prompter.NewMockPrompter()
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
+func setupTestContext(prompterMock *prompter.MockPrompter, configMock *configuration.MockConfigurationHandler) context.Context {
 	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	cmd.Flags().String("task", "PROJ-123", "Jira task ID")
-
-	task, err := determineTask(cmd)
-
-	assert.NoError(t, err)
-	assert.Equal(t, "PROJ-123", task)
+	return context.WithValue(ctx, configKey, configMock)
 }
 
-func TestDetermineTask_WithTaskFlagPassedBadAndPromptedProperly(t *testing.T) {
-	prompterMock := prompter.NewMockPrompter()
-	prompterMock.SetStringResponses([]string{"PROJ-123"}, []error{nil})
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
+func setupTestCommand(ctx context.Context) *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.SetContext(ctx)
-	cmd.Flags().String("task", "not a task", "Jira task ID")
-
-	task, err := determineTask(cmd)
-
-	assert.NoError(t, err)
-	assert.Equal(t, "PROJ-123", task)
+	return cmd
 }
 
-func TestDetermineTask_WithTaskFlagPassedProperlyAndPromptedBad(t *testing.T) {
+func setupTestWithMocks(prompterResponses []string, prompterErrors []error, prompterApproveResponses []bool, prompterApproveErrors []error, config *configuration.Config) (*cobra.Command, *prompter.MockPrompter) {
 	prompterMock := prompter.NewMockPrompter()
-	prompterMock.SetStringResponses([]string{"also not a task"}, []error{nil})
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	cmd.Flags().String("task", "not a task", "Jira task ID")
+	prompterMock.SetStringResponses(prompterResponses, prompterErrors)
+	prompterMock.SetApproveResponses(prompterApproveResponses, prompterApproveErrors)
 
-	task, err := determineTask(cmd)
+	configMock := configuration.NewMockConfigurationHandler()
+	if config != nil {
+		configMock.SetConfig(config)
+	}
 
-	assert.Error(t, err)
-	assert.Equal(t, "", task)
+	ctx := setupTestContext(prompterMock, configMock)
+	cmd := setupTestCommand(ctx)
+
+	return cmd, prompterMock
 }
 
-func TestDetermineTask_WithTaskFlagAndFullURL(t *testing.T) {
-	prompterMock := prompter.NewMockPrompter()
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	cmd.Flags().String("task", "https://some-jira.host.com/PROJ-123", "Jira task ID")
+func TestDetermineTask(t *testing.T) {
+	tests := []struct {
+		name                     string
+		taskFlag                 string
+		aliasFlag                string
+		gitBranch                string
+		gitError                 error
+		prompterResponses        []string
+		prompterErrors           []error
+		prompterApproveResponses []bool
+		prompterApproveErrors    []error
+		config                   *configuration.Config
+		expectedTask             string
+		expectError              bool
+	}{
+		{
+			name:         "WithTaskFlag",
+			taskFlag:     "PROJ-123",
+			expectedTask: "PROJ-123",
+		},
+		{
+			name:              "WithTaskFlagPassedBadAndPromptedProperly",
+			taskFlag:          "not a task",
+			prompterResponses: []string{"PROJ-123"},
+			expectedTask:      "PROJ-123",
+		},
+		{
+			name:              "WithTaskFlagPassedProperlyAndPromptedBad",
+			taskFlag:          "not a task",
+			prompterResponses: []string{"also not a task"},
+			expectError:       true,
+		},
+		{
+			name:         "WithTaskFlagAndFullURL",
+			taskFlag:     "https://some-jira.host.com/PROJ-123",
+			expectedTask: "PROJ-123",
+		},
+		{
+			name:      "WithAlias",
+			aliasFlag: "bugfix",
+			config: &configuration.Config{
+				Aliases: map[string]string{"bugfix": "BUG-456"},
+			},
+			expectedTask: "BUG-456",
+		},
+		{
+			name:              "WithNotSetAliasButPromptedProperly",
+			aliasFlag:         "notbugfix",
+			prompterResponses: []string{"bugfix"},
+			config: &configuration.Config{
+				Aliases: map[string]string{"bugfix": "BUG-456"},
+			},
+			expectedTask: "BUG-456",
+		},
+		{
+			name:              "WithNotSetAliasAndPromptedBadly",
+			aliasFlag:         "notbugfix",
+			prompterResponses: []string{"BUG-456"},
+			config: &configuration.Config{
+				Aliases: map[string]string{"bugfix": "BUG-456"},
+			},
+			expectError: true,
+		},
+		{
+			name:                     "WithGitBranch",
+			gitBranch:                "FEAT-789",
+			gitError:                 nil,
+			expectedTask:             "FEAT-789",
+			prompterApproveResponses: []bool{true},
+			prompterApproveErrors:    []error{nil},
+		},
+		{
+			name:                     "WithNotOnlyGitBranch",
+			gitBranch:                "feature/FEAT-789",
+			expectedTask:             "FEAT-789",
+			prompterApproveResponses: []bool{true},
+			prompterApproveErrors:    []error{nil},
+		},
+		{
+			name:        "WithInvalidGitBranch",
+			gitBranch:   "invalid-branch",
+			expectError: true,
+		},
+		{
+			name:              "WithInvalidGitBranchAndPassedTask",
+			gitBranch:         "invalid-branch",
+			prompterResponses: []string{"PRO-123"},
+			prompterErrors:    []error{nil},
+			expectedTask:      "PRO-123",
+		},
+		{
+			name:        "WithGitError",
+			gitError:    errors.New("Git error"),
+			expectError: true,
+		},
+	}
 
-	task, err := determineTask(cmd)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			getGitBranch = mockGetGitBranch(tc.gitBranch, tc.gitError)
 
-	assert.NoError(t, err)
-	assert.Equal(t, "PROJ-123", task)
+			cmd, _ := setupTestWithMocks(tc.prompterResponses, tc.prompterErrors, tc.prompterApproveResponses, tc.prompterApproveErrors, tc.config)
+
+			if tc.taskFlag != "" {
+				cmd.Flags().String("task", tc.taskFlag, "Jira task ID")
+			}
+			if tc.aliasFlag != "" {
+				cmd.Flags().String("alias", tc.aliasFlag, "Task alias")
+			}
+
+			task, err := determineTask(cmd)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Equal(t, "", task)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedTask, task)
+			}
+		})
+	}
 }
 
-func TestDetermineTask_WithAlias(t *testing.T) {
-	prompterMock := prompter.NewMockPrompter()
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	configurationHandlerMock.SetConfig(&configuration.Config{
-		Aliases: map[string]string{"bugfix": "BUG-456"},
-	})
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	cmd.Flags().String("alias", "bugfix", "Task alias")
+func TestParseDuration(t *testing.T) {
+	tests := []struct {
+		name                     string
+		hours                    int
+		minutes                  int
+		prompterResponses        []string
+		prompterErrors           []error
+		prompterApproveResponses []bool
+		prompterApproveErrors    []error
+		config                   *configuration.Config
+		expectedDuration         time.Duration
+		expectError              bool
+	}{
+		{
+			name:             "WithHoursFlag",
+			hours:            1,
+			expectedDuration: time.Duration(1) * time.Hour,
+		},
+		{
+			name:             "WithMinutesFlag",
+			minutes:          45,
+			expectedDuration: time.Duration(45) * time.Minute,
+		},
+		{
+			name:             "WithHoursAndMinutesFlag",
+			hours:            2,
+			minutes:          45,
+			expectedDuration: time.Duration(45)*time.Minute + time.Duration(2)*time.Hour,
+		},
+		{
+			name:             "WithoutAnyFlagAndNoSnapshot",
+			expectedDuration: time.Duration(0),
+			expectError:      true,
+		},
+	}
 
-	task, err := determineTask(cmd)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 
-	assert.NoError(t, err)
-	assert.Equal(t, "BUG-456", task)
-}
+			cmd, _ := setupTestWithMocks(tc.prompterResponses, tc.prompterErrors, tc.prompterApproveResponses, tc.prompterApproveErrors, tc.config)
 
-func TestDetermineTask_WithNotSetAliasButPromptedProperly(t *testing.T) {
-	prompterMock := prompter.NewMockPrompter()
-	prompterMock.SetStringResponses([]string{"bugfix"}, []error{nil})
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	configurationHandlerMock.SetConfig(&configuration.Config{
-		Aliases: map[string]string{"bugfix": "BUG-456"},
-	})
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	cmd.Flags().String("alias", "notbugfix", "Task alias")
+			if tc.hours != 0 {
+				cmd.Flags().Int("hours", tc.hours, "Hours spent")
+			}
+			if tc.minutes != 0 {
+				cmd.Flags().Int("minutes", tc.minutes, "Minutes spent")
+			}
 
-	task, err := determineTask(cmd)
+			result, err := parseDuration(cmd)
 
-	assert.NoError(t, err)
-	assert.Equal(t, "BUG-456", task)
-}
-
-func TestDetermineTask_WithNotSetAliasAndPromptedBadly(t *testing.T) {
-	prompterMock := prompter.NewMockPrompter()
-	prompterMock.SetStringResponses([]string{"BUG-456"}, []error{nil})
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	configurationHandlerMock.SetConfig(&configuration.Config{
-		Aliases: map[string]string{"bugfix": "BUG-456"},
-	})
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	cmd.Flags().String("alias", "notbugfix", "Task alias")
-
-	task, err := determineTask(cmd)
-
-	assert.Error(t, err)
-	assert.Equal(t, "", task)
-}
-
-func TestDetermineTask_WithGitBranch(t *testing.T) {
-	getGitBranch = mockGetGitBranch("FEAT-789", nil)
-	prompterMock := prompter.NewMockPrompter()
-	prompterMock.SetApproveResponses([]bool{true}, []error{nil})
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	task, err := determineTask(cmd)
-
-	assert.NoError(t, err)
-	assert.Equal(t, "FEAT-789", task)
-}
-
-func TestDetermineTask_WithNotOnlyGitBranch(t *testing.T) {
-	getGitBranch = mockGetGitBranch("feature/FEAT-789", nil)
-	prompterMock := prompter.NewMockPrompter()
-	prompterMock.SetApproveResponses([]bool{true}, []error{nil})
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	task, err := determineTask(cmd)
-
-	assert.NoError(t, err)
-	assert.Equal(t, "FEAT-789", task)
-}
-
-func TestDetermineTask_WithInvalidGitBranch(t *testing.T) {
-	getGitBranch = mockGetGitBranch("invalid-branch", nil)
-	prompterMock := prompter.NewMockPrompter()
-	prompterMock.SetApproveResponses([]bool{true}, []error{nil})
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	task, err := determineTask(cmd)
-
-	assert.Error(t, err)
-	assert.Equal(t, "", task)
-}
-
-func TestDetermineTask_WithInvalidGitBranchAndPassedTask(t *testing.T) {
-	getGitBranch = mockGetGitBranch("invalid-branch", nil)
-	prompterMock := prompter.NewMockPrompter()
-	prompterMock.SetStringResponses([]string{"PRO-123"}, []error{nil})
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	task, err := determineTask(cmd)
-
-	assert.NoError(t, err)
-	assert.Equal(t, "PRO-123", task)
-}
-
-// Test when Git command fails
-func TestDetermineTask_WithGitError(t *testing.T) {
-	getGitBranch = mockGetGitBranch("", errors.New("Git error")) // Mock Git failure
-	prompterMock := prompter.NewMockPrompter()
-	configurationHandlerMock := configuration.NewMockConfigurationHandler()
-	ctx := context.WithValue(context.Background(), prompterKey, prompterMock)
-	ctx = context.WithValue(ctx, configKey, configurationHandlerMock)
-	cmd := &cobra.Command{}
-	cmd.SetContext(ctx)
-	task, err := determineTask(cmd)
-
-	assert.Error(t, err)
-	assert.Equal(t, "", task)
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Equal(t, time.Duration(0), result)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedDuration, result)
+			}
+		})
+	}
 }

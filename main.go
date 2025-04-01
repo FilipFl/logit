@@ -4,6 +4,7 @@ import (
 	"github.com/FilipFl/logit/configuration"
 	"github.com/FilipFl/logit/git"
 	"github.com/FilipFl/logit/prompter"
+	"github.com/FilipFl/logit/timer"
 	"github.com/spf13/cobra"
 )
 
@@ -11,6 +12,7 @@ func main() {
 	prompter := prompter.NewBasicPrompter()
 	config := configuration.NewBasicConfigurationHandler()
 	gitHandler := git.NewBasicGitHandler()
+	timer := timer.NewBasicTimer()
 
 	var rootCmd = &cobra.Command{Use: "logit"}
 
@@ -33,9 +35,9 @@ func main() {
 	removeAliasCmd := NewRemoveAliasCommand(config)
 	listAliasesCmd := NewListAliasesCommand(config)
 
-	startTimerCmd := NewStartTimerCommand(config)
+	startTimerCmd := NewStartTimerCommand(config, timer)
 
-	logCmd := NewLogCommand(config, prompter, gitHandler)
+	logCmd := NewLogCommand(config, prompter, gitHandler, timer)
 
 	configCmd.AddCommand(setHostCmd, setTokenCmd, setEmailCmd, setTokenEnvNameCmd)
 

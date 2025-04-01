@@ -12,6 +12,7 @@ import (
 	"github.com/FilipFl/logit/configuration"
 	"github.com/FilipFl/logit/git"
 	"github.com/FilipFl/logit/prompter"
+	"github.com/FilipFl/logit/timer"
 	"github.com/spf13/cobra"
 )
 
@@ -89,10 +90,10 @@ func determineTask(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 		return resultTask, nil
 	}
 
-	return "", errorNoTargetToLogWork
+	return "", errorOperationAborted
 }
 
-func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter) (time.Duration, error) {
+func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, timer timer.Timer) (time.Duration, error) {
 	result := time.Duration(0)
 	hours, _ := cmd.Flags().GetInt("hours")
 	minutes, _ := cmd.Flags().GetInt("minutes")
@@ -102,7 +103,7 @@ func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 		if cfgHandler.LoadConfig().Snapshot == nil {
 			return time.Duration(0), errorNoSnapshot
 		}
-		now := time.Now()
+		now := timer.Now()
 		result = now.Sub(*cfgHandler.LoadConfig().Snapshot)
 	}
 	if int(result.Hours()) > 8 {
@@ -113,7 +114,7 @@ func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 		if proceed {
 			return result, nil
 		} else {
-			return time.Duration(0), errorWrongDuration
+			return time.Duration(0), errorOperationAborted
 		}
 	}
 

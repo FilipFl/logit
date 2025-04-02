@@ -93,6 +93,26 @@ func determineTask(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 	return "", errorOperationAborted
 }
 
+func assertFlagsAreValid(cmd *cobra.Command) error {
+	task, _ := cmd.Flags().GetString("task")
+	alias, _ := cmd.Flags().GetString("alias")
+	yesterday, _ := cmd.Flags().GetBool("yesterday")
+	date, _ := cmd.Flags().GetString("date")
+	hours, _ := cmd.Flags().GetInt("hours")
+	minutes, _ := cmd.Flags().GetInt("minutes")
+
+	if task != "" && alias != "" {
+		return errorAliasAndTask
+	}
+	if yesterday && date != "" {
+		return errorYesterdayAndDate
+	}
+	if hours == 0 && minutes == 0 && (yesterday || date != "") {
+		return errorSnapshotNotToday
+	}
+	return nil
+}
+
 func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, timer timer.Timer) (time.Duration, error) {
 	result := time.Duration(0)
 	hours, _ := cmd.Flags().GetInt("hours")
@@ -175,7 +195,7 @@ func determineStarted(cmd *cobra.Command, timer timer.Timer) (time.Time, error) 
 func logTimeToJira(ticket string, duration time.Duration, started time.Time, comment string, cfgHandler configuration.ConfigurationHandler) error {
 	cfg := cfgHandler.LoadConfig()
 	timeSpent := fmt.Sprintf("%dh %dm", int(duration.Hours()), int(duration.Minutes())%60)
-	url := fmt.Sprintf("%s/rest/api/3/issue/%s/worklog", cfg.JiraHost, ticket)
+	url := fmt.Sprintf("https://%s/rest/api/3/issue/%s/worklog", cfg.JiraHost, ticket)
 	worklog := Worklog{
 		TimeSpent: timeSpent,
 		Started:   started.Format("2006-01-02T15:04:05.000-0700"),

@@ -138,13 +138,8 @@ func TestDetermineTask(t *testing.T) {
 			}
 
 			cmd := &cobra.Command{}
-
-			if tt.taskFlag != "" {
-				cmd.Flags().String("task", tt.taskFlag, "Jira task ID")
-			}
-			if tt.aliasFlag != "" {
-				cmd.Flags().String("alias", tt.aliasFlag, "Task alias")
-			}
+			cmd.Flags().String("task", tt.taskFlag, "")
+			cmd.Flags().String("alias", tt.aliasFlag, "")
 
 			task, err := determineTask(cmd, cfgHandlerMock, prompterMock, gitHandlerMock)
 
@@ -258,12 +253,8 @@ func TestParseDuration(t *testing.T) {
 			}
 
 			cmd := &cobra.Command{}
-			if tt.hours != 0 {
-				cmd.Flags().Int("hours", tt.hours, "Hours spent")
-			}
-			if tt.minutes != 0 {
-				cmd.Flags().Int("minutes", tt.minutes, "Minutes spent")
-			}
+			cmd.Flags().Int("hours", tt.hours, "")
+			cmd.Flags().Int("minutes", tt.minutes, "")
 
 			result, err := parseDuration(cmd, cfgHandlerMock, prompterMock, timerMock)
 
@@ -391,17 +382,77 @@ func TestDetermineStarted(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &cobra.Command{}
-			if tt.dateFlag != "" {
-				cmd.Flags().String("date", tt.dateFlag, "Date in format dd-mm, present year is assumed")
-			}
-			if tt.yesterdayFlag {
-				cmd.Flags().Bool("yesterday", tt.yesterdayFlag, "Log time for yesterday")
-			}
+			cmd.Flags().String("date", tt.dateFlag, "")
+			cmd.Flags().Bool("yesterday", tt.yesterdayFlag, "")
 
 			result, err := determineStarted(cmd, tt.timer)
 
 			assert.Equal(t, tt.expectedStart, result)
 			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestAssertFlagsAreValid(t *testing.T) {
+	tests := []struct {
+		name          string
+		task          string
+		alias         string
+		yesterday     bool
+		date          string
+		hours         int
+		minutes       int
+		expectedError error
+	}{
+		{
+			name:          "task and alias",
+			task:          "PRO-123",
+			alias:         "alias",
+			expectedError: errorAliasAndTask,
+		},
+		{
+			name:          "yesterday and date",
+			yesterday:     true,
+			date:          "01.01",
+			expectedError: errorYesterdayAndDate,
+		},
+		{
+			name:          "yesterday and snapshot",
+			yesterday:     true,
+			expectedError: errorSnapshotNotToday,
+		},
+		{
+			name:          "date and snapshot",
+			date:          "03.03",
+			expectedError: errorSnapshotNotToday,
+		},
+		{
+			name:          "valid",
+			task:          "TASK123",
+			alias:         "",
+			hours:         1,
+			minutes:       30,
+			expectedError: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			cmd.Flags().String("task", tt.task, "")
+			cmd.Flags().String("alias", tt.alias, "")
+			cmd.Flags().String("date", tt.date, "")
+			cmd.Flags().Bool("yesterday", tt.yesterday, "")
+			cmd.Flags().Int("hours", tt.hours, "")
+			cmd.Flags().Int("minutes", tt.minutes, "")
+
+			err := assertFlagsAreValid(cmd)
+
+			if tt.expectedError == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.Equal(t, tt.expectedError, err)
+			}
 		})
 	}
 }

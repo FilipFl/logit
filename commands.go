@@ -31,6 +31,11 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 		Use:   "log",
 		Short: "Log time to Jira",
 		Run: func(cmd *cobra.Command, args []string) {
+			err := assertFlagsAreValid(cmd)
+			if err != nil {
+				return
+			}
+
 			comment, _ := cmd.Flags().GetString("comment")
 
 			task, err := determineTask(cmd, cfgHandler, prompter, gitHandler)
@@ -67,7 +72,7 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 	cmd.Flags().IntP("hours", "H", 0, "Hours spent")
 	cmd.Flags().IntP("minutes", "m", 0, "Minutes spent")
 	cmd.Flags().StringP("comment", "c", "", "Worklog comment")
-	cmd.Flags().StringP("task", "t", "", "Jira task ID")
+	cmd.Flags().StringP("task", "t", "", "Jira task ID or URL")
 	cmd.Flags().StringP("alias", "a", "", "Task by alias")
 	cmd.Flags().BoolP("yesterday", "y", false, "Log time for yesterday")
 	cmd.Flags().StringP("date", "d", "", "Date in format dd-mm, present year is assumed")

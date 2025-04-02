@@ -1,11 +1,7 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"regexp"
 	"time"
 
@@ -15,12 +11,6 @@ import (
 	"github.com/FilipFl/logit/timer"
 	"github.com/spf13/cobra"
 )
-
-type Worklog struct {
-	TimeSpent string `json:"timeSpent"`
-	Started   string `json:"started"`
-	Comment   string `json:"comment,omitempty"`
-}
 
 const provideTaskMessage = "Provide task ID or task URL:"
 
@@ -190,45 +180,4 @@ func determineStarted(cmd *cobra.Command, timer timer.Timer) (time.Time, error) 
 	}
 
 	return timer.Now(), nil
-}
-
-func logTimeToJira(ticket string, duration time.Duration, started time.Time, comment string, cfgHandler configuration.ConfigurationHandler) error {
-	cfg := cfgHandler.LoadConfig()
-	timeSpent := fmt.Sprintf("%dh %dm", int(duration.Hours()), int(duration.Minutes())%60)
-	url := fmt.Sprintf("https://%s/rest/api/3/issue/%s/worklog", cfg.JiraHost, ticket)
-	worklog := Worklog{
-		TimeSpent: timeSpent,
-		Started:   started.Format("2006-01-02T15:04:05.000-0700"),
-		Comment:   comment,
-	}
-	jsonData, _ := json.Marshal(worklog)
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	token := cfgHandler.GetToken()
-
-	if cfg.JiraEmail == "" {
-		return errorEmailNotConfigured
-	}
-	if token == "" {
-		return errorTokenNotConfigured
-	}
-
-	req.SetBasicAuth(cfg.JiraEmail, token)
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to log time: %s", string(body))
-	}
-
-	return nil
 }

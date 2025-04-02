@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/FilipFl/logit/configuration"
 	"github.com/FilipFl/logit/git"
+	"github.com/FilipFl/logit/jira"
 	"github.com/FilipFl/logit/prompter"
 	"github.com/FilipFl/logit/timer"
 	"github.com/spf13/cobra"
@@ -13,6 +14,7 @@ func main() {
 	config := configuration.NewBasicConfigurationHandler()
 	gitHandler := git.NewBasicGitHandler()
 	timer := timer.NewBasicTimer()
+	jiraClient := jira.NewJiraClient(config)
 
 	var rootCmd = &cobra.Command{Use: "logit"}
 
@@ -37,13 +39,14 @@ func main() {
 
 	startTimerCmd := NewStartTimerCommand(config, timer)
 
-	logCmd := NewLogCommand(config, prompter, gitHandler, timer)
+	myTasksCmd := NewMyTasksCommand(jiraClient)
+	logCmd := NewLogCommand(config, prompter, gitHandler, timer, jiraClient)
 
 	configCmd.AddCommand(setHostCmd, setTokenCmd, setEmailCmd, setTokenEnvNameCmd)
 
 	aliasCmd.AddCommand(setAliasCmd, listAliasesCmd, removeAliasCmd)
 
-	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd, aliasCmd)
+	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd, aliasCmd, myTasksCmd)
 
 	rootCmd.Execute()
 }

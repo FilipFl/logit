@@ -5,6 +5,7 @@ import (
 
 	"github.com/FilipFl/logit/configuration"
 	"github.com/FilipFl/logit/git"
+	"github.com/FilipFl/logit/jira"
 	"github.com/FilipFl/logit/prompter"
 	"github.com/FilipFl/logit/timer"
 	"github.com/spf13/cobra"
@@ -23,10 +24,26 @@ func NewStartTimerCommand(cfgHandler configuration.ConfigurationHandler, timer t
 			fmt.Println("Started to measure time.")
 		},
 	}
-
 }
 
-func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, gitHandler git.GitHandler, timer timer.Timer) *cobra.Command {
+func NewMyTasksCommand(client jira.Client) *cobra.Command {
+	return &cobra.Command{
+		Use:   "myTasks",
+		Short: "List tasks assigned to me",
+		Args:  nil,
+		Run: func(cmd *cobra.Command, args []string) {
+			results, err := client.GetAssignedIssues()
+			if err != nil {
+				return
+			}
+			for _, issue := range results {
+				fmt.Sprintf("Task: %s, Summary: %s, Status: %s\n", issue.Key, issue.Summary, issue.Status)
+			}
+		},
+	}
+}
+
+func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, gitHandler git.GitHandler, timer timer.Timer, client jira.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log",
 		Short: "Log time to Jira",
@@ -40,11 +57,11 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 
 			task, err := determineTask(cmd, cfgHandler, prompter, gitHandler)
 			if err != nil {
-				fmt.Println("Error logging time: ", err)
+				fmt.Println("Error assessing task to log time: ", err)
 				return
 			}
 			if task == "" {
-				fmt.Println("No target for time logging.")
+				fmt.Println("No target indicated for time logging.")
 				return
 			}
 			duration, err := parseDuration(cmd, cfgHandler, prompter, timer)
@@ -56,9 +73,11 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 			fmt.Println("duration ", fmt.Sprintf("%dh %dm", int(duration.Hours()), int(duration.Minutes())%60))
 			dateStarted, err := determineStarted(cmd, timer)
 			if err != nil {
+				fmt.Println("Error assessing date to log time on: ", err)
 				return
 			}
-			if err := logTimeToJira(task, duration, dateStarted, comment, cfgHandler); err != nil {
+
+			if err := client.LogTime(task, duration, dateStarted, comment); err != nil {
 				fmt.Println("Error logging time:", err)
 			} else {
 				fmt.Printf("Successfully logged %dh %dm for ticket %s\n", int(duration.Hours()), int(duration.Minutes())%60, task)

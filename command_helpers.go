@@ -121,13 +121,64 @@ func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 	return result, nil
 }
 
-func logTimeToJira(ticket string, duration time.Duration, comment string, cfgHandler configuration.ConfigurationHandler) error {
+func parseDateFromString(s string, timer timer.Timer) (time.Time, error) {
+	t := timer.Now()
+	dotFormat := regexp.MustCompile(`^(\d{2})\.(\d{2})$`)
+	dashFormat := regexp.MustCompile(`^(\d{2})-(\d{2})$`)
+
+	var newDay, newMonth int
+
+	switch {
+	case dotFormat.MatchString(s):
+		fmt.Sscanf(s, "%02d.%02d", &newDay, &newMonth)
+	case dashFormat.MatchString(s):
+		fmt.Sscanf(s, "%02d-%02d", &newDay, &newMonth)
+	default:
+		return time.Time{}, errorInvalidDateFormat
+	}
+
+	if newMonth < 1 || newMonth > 12 {
+		return time.Time{}, errorInvalidMonth
+	}
+
+	// Validate the new day within the month
+	newTime := time.Date(t.Year(), time.Month(newMonth), 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+	lastDayOfMonth := newTime.AddDate(0, 1, -1).Day()
+
+	if newDay < 1 || newDay > lastDayOfMonth {
+		return time.Time{}, errorInvalidDay
+	}
+
+	return time.Date(t.Year(), time.Month(newMonth), newDay, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location()), nil
+}
+
+func safeSubtractDay(t time.Time) time.Time {
+	hour, min, sec, nsec := t.Hour(), t.Minute(), t.Second(), t.Nanosecond()
+	yesterday := t.AddDate(0, 0, -1)
+	return time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), hour, min, sec, nsec, t.Location())
+}
+
+func determineStarted(cmd *cobra.Command, timer timer.Timer) (time.Time, error) {
+	yesterday, _ := cmd.Flags().GetBool("yesterday")
+	date, _ := cmd.Flags().GetString("date")
+
+	if date != "" {
+		return parseDateFromString(date, timer)
+	}
+	if yesterday {
+		return safeSubtractDay(timer.Now()), nil
+	}
+
+	return timer.Now(), nil
+}
+
+func logTimeToJira(ticket string, duration time.Duration, started time.Time, comment string, cfgHandler configuration.ConfigurationHandler) error {
 	cfg := cfgHandler.LoadConfig()
 	timeSpent := fmt.Sprintf("%dh %dm", int(duration.Hours()), int(duration.Minutes())%60)
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s/worklog", cfg.JiraHost, ticket)
 	worklog := Worklog{
 		TimeSpent: timeSpent,
-		Started:   time.Now().Format("2006-01-02T15:04:05.000-0700"),
+		Started:   started.Format("2006-01-02T15:04:05.000-0700"),
 		Comment:   comment,
 	}
 	jsonData, _ := json.Marshal(worklog)

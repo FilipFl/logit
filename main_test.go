@@ -115,45 +115,45 @@ func TestDetermineTask(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			cfgHandlerMock := configuration.NewMockConfigurationHandler()
-			if tc.config != nil {
-				cfgHandlerMock.SetConfig(tc.config)
+			if tt.config != nil {
+				cfgHandlerMock.SetConfig(tt.config)
 			}
 			prompterMock := prompter.NewMockPrompter()
-			if tc.prompterResponses != nil {
-				prompterMock.SetStringResponses(tc.prompterResponses, tc.prompterErrors)
+			if tt.prompterResponses != nil {
+				prompterMock.SetStringResponses(tt.prompterResponses, tt.prompterErrors)
 			}
-			if tc.prompterApproveResponses != nil {
-				prompterMock.SetApproveResponses(tc.prompterApproveResponses, tc.prompterApproveErrors)
+			if tt.prompterApproveResponses != nil {
+				prompterMock.SetApproveResponses(tt.prompterApproveResponses, tt.prompterApproveErrors)
 			}
 			gitHandlerMock := git.NewMockGitHandler()
-			if tc.gitBranch != "" {
-				gitHandlerMock.Branch = tc.gitBranch
+			if tt.gitBranch != "" {
+				gitHandlerMock.Branch = tt.gitBranch
 				gitHandlerMock.Error = nil
-			} else if tc.gitError != nil {
+			} else if tt.gitError != nil {
 				gitHandlerMock.Branch = ""
-				gitHandlerMock.Error = tc.gitError
+				gitHandlerMock.Error = tt.gitError
 			}
 
 			cmd := &cobra.Command{}
 
-			if tc.taskFlag != "" {
-				cmd.Flags().String("task", tc.taskFlag, "Jira task ID")
+			if tt.taskFlag != "" {
+				cmd.Flags().String("task", tt.taskFlag, "Jira task ID")
 			}
-			if tc.aliasFlag != "" {
-				cmd.Flags().String("alias", tc.aliasFlag, "Task alias")
+			if tt.aliasFlag != "" {
+				cmd.Flags().String("alias", tt.aliasFlag, "Task alias")
 			}
 
 			task, err := determineTask(cmd, cfgHandlerMock, prompterMock, gitHandlerMock)
 
-			if tc.expectedError != nil {
-				assert.Equal(t, tc.expectedError, err)
+			if tt.expectedError != nil {
+				assert.Equal(t, tt.expectedError, err)
 				assert.Equal(t, "", task)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedTask, task)
+				assert.Equal(t, tt.expectedTask, task)
 			}
 		})
 	}
@@ -239,41 +239,169 @@ func TestParseDuration(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			cfgHandlerMock := configuration.NewMockConfigurationHandler()
-			if tc.config != nil {
-				cfgHandlerMock.SetConfig(tc.config)
+			if tt.config != nil {
+				cfgHandlerMock.SetConfig(tt.config)
 			}
 			prompterMock := prompter.NewMockPrompter()
-			if tc.prompterResponses != nil {
-				prompterMock.SetStringResponses(tc.prompterResponses, tc.prompterErrors)
+			if tt.prompterResponses != nil {
+				prompterMock.SetStringResponses(tt.prompterResponses, tt.prompterErrors)
 			}
-			if tc.prompterApproveResponses != nil {
-				prompterMock.SetApproveResponses(tc.prompterApproveResponses, tc.prompterApproveErrors)
+			if tt.prompterApproveResponses != nil {
+				prompterMock.SetApproveResponses(tt.prompterApproveResponses, tt.prompterApproveErrors)
 			}
 			timerMock := timer.NewMockTimer("2025-01-04T14:00:00.000Z")
-			if tc.timer != nil {
-				timerMock = tc.timer.(*timer.MockTimer)
+			if tt.timer != nil {
+				timerMock = tt.timer.(*timer.MockTimer)
 			}
 
 			cmd := &cobra.Command{}
-			if tc.hours != 0 {
-				cmd.Flags().Int("hours", tc.hours, "Hours spent")
+			if tt.hours != 0 {
+				cmd.Flags().Int("hours", tt.hours, "Hours spent")
 			}
-			if tc.minutes != 0 {
-				cmd.Flags().Int("minutes", tc.minutes, "Minutes spent")
+			if tt.minutes != 0 {
+				cmd.Flags().Int("minutes", tt.minutes, "Minutes spent")
 			}
 
 			result, err := parseDuration(cmd, cfgHandlerMock, prompterMock, timerMock)
 
-			if tc.expectedError != nil {
-				assert.Equal(t, tc.expectedError, err)
+			if tt.expectedError != nil {
+				assert.Equal(t, tt.expectedError, err)
 				assert.Equal(t, time.Duration(0), result)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedDuration, result)
+				assert.Equal(t, tt.expectedDuration, result)
 			}
+		})
+	}
+}
+
+func TestParseDateFromString(t *testing.T) {
+
+	tests := []struct {
+		name          string
+		input         string
+		expectedTime  time.Time
+		expectedError error
+		customTimer   timer.Timer
+	}{
+		{
+			"valid date - dot",
+			"12.05",
+			time.Date(2025, 5, 12, 14, 0, 0, 0, time.UTC),
+			nil,
+			timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			"valid date - dash ",
+			"04-01",
+			time.Date(2025, 1, 4, 14, 0, 0, 0, time.UTC),
+			nil,
+			timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			"invalid format",
+			"04/01",
+			time.Time{},
+			errorInvalidDateFormat,
+			timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			"invalid month",
+			"15.13",
+			time.Time{},
+			errorInvalidMonth,
+			timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			"invalid day",
+			"31.04",
+			time.Time{},
+			errorInvalidDay,
+			timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			"leap year valid",
+			"29.02",
+			time.Date(2024, 2, 29, 14, 0, 0, 0, time.UTC),
+			nil,
+			timer.NewMockTimer("2024-01-04T14:00:00.000Z"),
+		},
+		{
+			"leap year invalid year",
+			"29.02",
+			time.Time{},
+			errorInvalidDay,
+			timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			"leap year invalid day",
+			"30.02",
+			time.Time{},
+			errorInvalidDay,
+			timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseDateFromString(tt.input, tt.customTimer)
+
+			if tt.expectedError != nil {
+				assert.Equal(t, tt.expectedError, err)
+				assert.Equal(t, tt.expectedTime, result)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedTime, result)
+			}
+		})
+	}
+}
+
+func TestDetermineStarted(t *testing.T) {
+	tests := []struct {
+		name          string
+		timer         timer.Timer
+		yesterdayFlag bool
+		dateFlag      string
+		expectedStart time.Time
+		expectedError error
+	}{
+		{
+			name:          "date 01.05",
+			timer:         timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+			dateFlag:      "01.05",
+			expectedStart: time.Date(2025, 5, 1, 14, 0, 0, 0, time.UTC),
+		},
+		{
+			name:          "yestedar",
+			timer:         timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+			yesterdayFlag: true,
+			expectedStart: time.Date(2025, 1, 3, 14, 0, 0, 0, time.UTC),
+		},
+		{
+			name:          "When no flags are set, return current time",
+			timer:         timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+			expectedStart: time.Date(2025, 1, 4, 14, 0, 0, 0, time.UTC),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			if tt.dateFlag != "" {
+				cmd.Flags().String("date", tt.dateFlag, "Date in format dd-mm, present year is assumed")
+			}
+			if tt.yesterdayFlag {
+				cmd.Flags().Bool("yesterday", tt.yesterdayFlag, "Log time for yesterday")
+			}
+
+			result, err := determineStarted(cmd, tt.timer)
+
+			assert.Equal(t, tt.expectedStart, result)
+			assert.NoError(t, err)
 		})
 	}
 }

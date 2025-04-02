@@ -31,7 +31,7 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 		Use:   "log",
 		Short: "Log time to Jira",
 		Run: func(cmd *cobra.Command, args []string) {
-			// comment, _ := cmd.Flags().GetString("comment")
+			comment, _ := cmd.Flags().GetString("comment")
 
 			task, err := determineTask(cmd, cfgHandler, prompter, gitHandler)
 			if err != nil {
@@ -49,13 +49,19 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 			}
 			fmt.Println("task ", task)
 			fmt.Println("duration ", fmt.Sprintf("%dh %dm", int(duration.Hours()), int(duration.Minutes())%60))
-			// if err := logTimeToJira(task, duration, comment, config); err != nil {
-			// 	fmt.Println("Error logging time:", err)
-			// } else {
-			// 	fmt.Printf("Successfully logged %dh %dm for ticket %s\n", hours, minutes, task)
-
-			// }
-			return
+			dateStarted, err := determineStarted(cmd, timer)
+			if err != nil {
+				return
+			}
+			if err := logTimeToJira(task, duration, dateStarted, comment, cfgHandler); err != nil {
+				fmt.Println("Error logging time:", err)
+			} else {
+				fmt.Printf("Successfully logged %dh %dm for ticket %s\n", int(duration.Hours()), int(duration.Minutes())%60, task)
+				cfg := cfgHandler.LoadConfig()
+				now := timer.Now()
+				cfg.Snapshot = &now
+				cfgHandler.SaveConfig(cfg)
+			}
 		},
 	}
 	cmd.Flags().IntP("hours", "H", 0, "Hours spent")
@@ -63,5 +69,7 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 	cmd.Flags().StringP("comment", "c", "", "Worklog comment")
 	cmd.Flags().StringP("task", "t", "", "Jira task ID")
 	cmd.Flags().StringP("alias", "a", "", "Task by alias")
+	cmd.Flags().BoolP("yesterday", "y", false, "Log time for yesterday")
+	cmd.Flags().StringP("date", "d", "", "Date in format dd-mm, present year is assumed")
 	return cmd
 }

@@ -29,12 +29,10 @@ func (h *MockConfigurationHandler) SaveConfig(cfg *Config) error {
 
 func (h *MockConfigurationHandler) SetConfig(cfg *Config) {
 	h.cfg = cfg
-	return
 }
 
 func (h *MockConfigurationHandler) SetError(err error) {
 	h.err = err
-	return
 }
 
 func (h *MockConfigurationHandler) GetToken() string {

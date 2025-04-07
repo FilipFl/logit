@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/FilipFl/logit/commands"
 	"github.com/FilipFl/logit/configuration"
 	"github.com/FilipFl/logit/git"
 	"github.com/FilipFl/logit/jira"
@@ -33,14 +34,14 @@ func main() {
 	setTokenEnvNameCmd := configuration.NewSetTokenEnvNameCommand(config)
 	setEmailCmd := configuration.NewSetEmailCommand(config)
 
-	setAliasCmd := NewSetAliasCommand(config)
-	removeAliasCmd := NewRemoveAliasCommand(config)
-	listAliasesCmd := NewListAliasesCommand(config)
+	setAliasCmd := commands.NewSetAliasCommand(config)
+	removeAliasCmd := commands.NewRemoveAliasCommand(config)
+	listAliasesCmd := commands.NewListAliasesCommand(config)
 
-	startTimerCmd := NewStartTimerCommand(config, timer)
+	startTimerCmd := commands.NewStartTimerCommand(config, timer)
 
-	myTasksCmd := NewMyTasksCommand(jiraClient)
-	logCmd := NewLogCommand(config, prompter, gitHandler, timer, jiraClient)
+	myTasksCmd := commands.NewMyTasksCommand(jiraClient)
+	logCmd := commands.NewLogCommand(config, prompter, gitHandler, timer, jiraClient)
 
 	configCmd.AddCommand(setHostCmd, setTokenCmd, setEmailCmd, setTokenEnvNameCmd)
 

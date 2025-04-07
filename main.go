@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/FilipFl/logit/commands"
-	"github.com/FilipFl/logit/configuration"
-	"github.com/FilipFl/logit/git"
-	"github.com/FilipFl/logit/jira"
-	"github.com/FilipFl/logit/prompter"
-	"github.com/FilipFl/logit/timer"
+	"github.com/FilipFl/logit/internal/commands"
+	"github.com/FilipFl/logit/internal/configuration"
+	"github.com/FilipFl/logit/internal/git"
+	"github.com/FilipFl/logit/internal/jira"
+	"github.com/FilipFl/logit/internal/prompter"
+	"github.com/FilipFl/logit/internal/timer"
 	"github.com/spf13/cobra"
 )
 

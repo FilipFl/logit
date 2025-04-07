@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FilipFl/logit/configuration"
+	"github.com/FilipFl/logit/internal/configuration"
 )
 
 type JiraClient struct {

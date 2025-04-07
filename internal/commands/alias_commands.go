@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/FilipFl/logit/configuration"
+	"github.com/FilipFl/logit/internal/configuration"
 	"github.com/spf13/cobra"
 )
 

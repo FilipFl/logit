@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FilipFl/logit/configuration"
+	"github.com/FilipFl/logit/internal/configuration"
 	"github.com/stretchr/testify/assert"
 )
 

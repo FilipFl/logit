@@ -8,7 +8,7 @@ type MockConfigurationHandler struct {
 func NewMockConfigurationHandler() *MockConfigurationHandler {
 	return &MockConfigurationHandler{
 		cfg: &Config{
-			JiraHost:         "",
+			JiraOrigin:       "",
 			JiraToken:        "",
 			JiraEmail:        "",
 			JiraTokenEnvName: "",

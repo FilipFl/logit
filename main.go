@@ -28,7 +28,7 @@ func main() {
 		Short: "Manage aliases",
 	}
 
-	setHostCmd := configuration.NewSetHostCommand(config)
+	setHostCmd := configuration.NewSetOriginCommand(config)
 	setTokenCmd := configuration.NewSetTokenCommand(config)
 	setTokenEnvNameCmd := configuration.NewSetTokenEnvNameCommand(config)
 	setEmailCmd := configuration.NewSetEmailCommand(config)

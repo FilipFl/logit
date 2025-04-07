@@ -37,7 +37,7 @@ func NewMyTasksCommand(client jira.Client) *cobra.Command {
 				return
 			}
 			for _, issue := range results {
-				fmt.Sprintf("Task: %s, Summary: %s, Status: %s\n", issue.Key, issue.Summary, issue.Status)
+				fmt.Printf("Task: %s, Summary: %s, Status: %s\n", issue.Key, issue.Summary, issue.Status)
 			}
 		},
 	}

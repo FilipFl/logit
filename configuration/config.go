@@ -3,7 +3,7 @@ package configuration
 import "time"
 
 type Config struct {
-	JiraHost         string            `json:"jira_host"`
+	JiraOrigin       string            `json:"jira_origin"`
 	JiraToken        string            `json:"jira_token"`
 	JiraEmail        string            `json:"jira_email"`
 	JiraTokenEnvName string            `json:"jira_token_env_name"`

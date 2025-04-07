@@ -6,16 +6,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewSetHostCommand(cfgHandler ConfigurationHandler) *cobra.Command {
+func NewSetOriginCommand(cfgHandler ConfigurationHandler) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-host [host]",
-		Short: "Set Jira host",
+		Use:   "set-origin [origin]",
+		Short: "Set Jira origin (consists of schema + host)",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg := cfgHandler.LoadConfig()
-			cfg.JiraHost = args[0]
+			cfg.JiraOrigin = args[0]
 			cfgHandler.SaveConfig(cfg)
-			fmt.Println("Jira host updated.")
+			fmt.Println("Jira origin updated.")
 		},
 	}
 }

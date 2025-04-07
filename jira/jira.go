@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/FilipFl/logit/configuration"
@@ -110,7 +111,10 @@ func (c *JiraClient) callPost(endpoint string, jsonData []byte) (*http.Response,
 	if err != nil {
 		return nil, err
 	}
-	url := fmt.Sprintf("https://%s%s", c.cfgHandler.LoadConfig().JiraHost, endpoint)
+	url := fmt.Sprintf("%s%s", c.cfgHandler.LoadConfig().JiraOrigin, endpoint)
+	if !(strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://")) {
+		url = "https://" + url
+	}
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
@@ -131,7 +135,7 @@ func (c *JiraClient) assertConfigurationIsValid() error {
 	if token == "" {
 		return errorTokenNotConfigured
 	}
-	host := c.cfgHandler.LoadConfig().JiraHost
+	host := c.cfgHandler.LoadConfig().JiraOrigin
 	if host == "" {
 		return errorHostNotConfigured
 	}

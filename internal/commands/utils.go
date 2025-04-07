@@ -83,7 +83,7 @@ func determineTask(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 	return "", errorOperationAborted
 }
 
-func assertFlagsAreValid(cmd *cobra.Command) error {
+func assertFlagsAreValid(cmd *cobra.Command, timer timer.Timer) error {
 	task, _ := cmd.Flags().GetString("task")
 	alias, _ := cmd.Flags().GetString("alias")
 	yesterday, _ := cmd.Flags().GetBool("yesterday")
@@ -100,18 +100,30 @@ func assertFlagsAreValid(cmd *cobra.Command) error {
 	if hours == 0 && minutes == 0 && (yesterday || date != "") {
 		return errorSnapshotNotToday
 	}
+	if hours < 0 || minutes < 0 {
+		return errorWrongDuration
+	}
+	if date != "" {
+		_, _, err := extractNewDayAndMonth(date, timer)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, timer timer.Timer) (time.Duration, error) {
+func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, timer timer.Timer) (time.Duration, bool, error) {
 	result := time.Duration(0)
+	fromSnapshot := false
 	hours, _ := cmd.Flags().GetInt("hours")
 	minutes, _ := cmd.Flags().GetInt("minutes")
 	if hours != 0 || minutes != 0 {
 		result = time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute
 	} else {
+		fromSnapshot = true
 		if cfgHandler.LoadConfig().Snapshot == nil {
-			return time.Duration(0), errorNoSnapshot
+			return time.Duration(0), fromSnapshot, errorNoSnapshot
 		}
 		now := timer.Now()
 		result = now.Sub(*cfgHandler.LoadConfig().Snapshot)
@@ -119,20 +131,30 @@ func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 	if int(result.Hours()) > 8 {
 		proceed, err := prompter.PromptForApprove(fmt.Sprintf("Are You sure you want to log %d hours and %d minutes?", int(result.Hours()), int(result.Minutes())%60))
 		if err != nil {
-			return time.Duration(0), err
+			return time.Duration(0), fromSnapshot, err
 		}
 		if proceed {
-			return result, nil
+			return result, fromSnapshot, nil
 		} else {
-			return time.Duration(0), errorOperationAborted
+			return time.Duration(0), fromSnapshot, errorOperationAborted
 		}
 	}
 
-	return result, nil
+	return result, fromSnapshot, nil
 }
 
 func parseDateFromString(s string, timer timer.Timer) (time.Time, error) {
 	t := timer.Now()
+	newDay, newMonth, err := extractNewDayAndMonth(s, timer)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Date(t.Year(), time.Month(newMonth), newDay, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location()), nil
+}
+
+func extractNewDayAndMonth(s string, tt timer.Timer) (int, int, error) {
+	t := tt.Now()
 	dotFormat := regexp.MustCompile(`^(\d{2})\.(\d{2})$`)
 	dashFormat := regexp.MustCompile(`^(\d{2})-(\d{2})$`)
 
@@ -144,22 +166,20 @@ func parseDateFromString(s string, timer timer.Timer) (time.Time, error) {
 	case dashFormat.MatchString(s):
 		fmt.Sscanf(s, "%02d-%02d", &newDay, &newMonth)
 	default:
-		return time.Time{}, errorInvalidDateFormat
+		return 0, 0, errorInvalidDateFormat
 	}
 
 	if newMonth < 1 || newMonth > 12 {
-		return time.Time{}, errorInvalidMonth
+		return 0, 0, errorInvalidMonth
 	}
 
-	// Validate the new day within the month
 	newTime := time.Date(t.Year(), time.Month(newMonth), 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
 	lastDayOfMonth := newTime.AddDate(0, 1, -1).Day()
 
 	if newDay < 1 || newDay > lastDayOfMonth {
-		return time.Time{}, errorInvalidDay
+		return 0, 0, errorInvalidDay
 	}
-
-	return time.Date(t.Year(), time.Month(newMonth), newDay, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location()), nil
+	return newDay, newMonth, nil
 }
 
 func safeSubtractDay(t time.Time) time.Time {

@@ -34,7 +34,7 @@ func main() {
 	setTokenEnvNameCmd := configuration.NewSetTokenEnvNameCommand(config)
 	setEmailCmd := configuration.NewSetEmailCommand(config)
 
-	setAliasCmd := commands.NewSetAliasCommand(config)
+	setAliasCmd := commands.NewSetAliasCommand(config, prompter)
 	removeAliasCmd := commands.NewRemoveAliasCommand(config)
 	listAliasesCmd := commands.NewListAliasesCommand(config)
 

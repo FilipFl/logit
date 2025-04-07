@@ -4,10 +4,11 @@ import (
 	"fmt"
 
 	"github.com/FilipFl/logit/internal/configuration"
+	"github.com/FilipFl/logit/internal/prompter"
 	"github.com/spf13/cobra"
 )
 
-func NewSetAliasCommand(cfgHandler configuration.ConfigurationHandler) *cobra.Command {
+func NewSetAliasCommand(cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter) *cobra.Command {
 	return &cobra.Command{
 		Use:   "set [alias] [ticket]",
 		Short: "Set an alias for a Jira ticket",
@@ -18,6 +19,16 @@ func NewSetAliasCommand(cfgHandler configuration.ConfigurationHandler) *cobra.Co
 			if err != nil {
 				fmt.Println(err)
 				return
+			}
+			if val, exists := cfg.Aliases[args[0]]; exists {
+				approve, err := prompter.PromptForApprove(fmt.Sprintf("Are You sure You want to overwrite alias %s: %s with task %s", args[0], val, ticket))
+				if err != nil {
+					fmt.Println("Error setting an alias:", err)
+					return
+				}
+				if !approve {
+					return
+				}
 			}
 			cfg.Aliases[args[0]] = ticket
 			cfgHandler.SaveConfig(cfg)

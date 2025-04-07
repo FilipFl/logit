@@ -166,6 +166,7 @@ func TestParseDuration(t *testing.T) {
 		config                   *configuration.Config
 		timer                    timer.Timer
 		expectedDuration         time.Duration
+		expectedFromSnapshot     bool
 		expectedError            error
 	}{
 		{
@@ -185,15 +186,17 @@ func TestParseDuration(t *testing.T) {
 			expectedDuration: time.Duration(45)*time.Minute + time.Duration(2)*time.Hour,
 		},
 		{
-			name:             "WithoutAnyFlagAndNoSnapshot",
-			expectedDuration: time.Duration(0),
-			expectedError:    errorNoSnapshot,
+			name:                 "WithoutAnyFlagAndNoSnapshot",
+			expectedDuration:     time.Duration(0),
+			expectedError:        errorNoSnapshot,
+			expectedFromSnapshot: true,
 		},
 		{
-			name:             "WithoutAnyFlagWithSnapshot",
-			expectedDuration: time.Duration(1) * time.Hour,
-			timer:            timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
-			config:           &configuration.Config{Snapshot: timer.ParseStringToTime("2025-01-04T13:00:00.000Z")},
+			name:                 "WithoutAnyFlagWithSnapshot",
+			expectedDuration:     time.Duration(1) * time.Hour,
+			timer:                timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+			config:               &configuration.Config{Snapshot: timer.ParseStringToTime("2025-01-04T13:00:00.000Z")},
+			expectedFromSnapshot: true,
 		},
 		{
 			name:                     "WithoutAnyFlagWith9hSnapshotAndApprove",
@@ -202,6 +205,7 @@ func TestParseDuration(t *testing.T) {
 			config:                   &configuration.Config{Snapshot: timer.ParseStringToTime("2025-01-04T05:00:00.000Z")},
 			prompterApproveResponses: []bool{true},
 			prompterApproveErrors:    []error{nil},
+			expectedFromSnapshot:     true,
 		},
 		{
 			name:                     "WithoutAnyFlagWith9hSnapshotAndDecline",
@@ -211,6 +215,7 @@ func TestParseDuration(t *testing.T) {
 			config:                   &configuration.Config{Snapshot: timer.ParseStringToTime("2025-01-04T05:00:00.000Z")},
 			prompterApproveResponses: []bool{false},
 			prompterApproveErrors:    []error{nil},
+			expectedFromSnapshot:     true,
 		},
 		{
 			name:             "With120MinutesFlag",
@@ -256,14 +261,16 @@ func TestParseDuration(t *testing.T) {
 			cmd.Flags().Int("hours", tt.hours, "")
 			cmd.Flags().Int("minutes", tt.minutes, "")
 
-			result, err := parseDuration(cmd, cfgHandlerMock, prompterMock, timerMock)
+			result, fromSnapshot, err := parseDuration(cmd, cfgHandlerMock, prompterMock, timerMock)
 
 			if tt.expectedError != nil {
 				assert.Equal(t, tt.expectedError, err)
 				assert.Equal(t, time.Duration(0), result)
+				assert.Equal(t, tt.expectedFromSnapshot, fromSnapshot)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedDuration, result)
+				assert.Equal(t, tt.expectedFromSnapshot, fromSnapshot)
 			}
 		})
 	}
@@ -403,28 +410,66 @@ func TestAssertFlagsAreValid(t *testing.T) {
 		hours         int
 		minutes       int
 		expectedError error
+		customTimer   timer.Timer
 	}{
 		{
 			name:          "task and alias",
 			task:          "PRO-123",
 			alias:         "alias",
 			expectedError: errorAliasAndTask,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
 		},
 		{
 			name:          "yesterday and date",
 			yesterday:     true,
 			date:          "01.01",
 			expectedError: errorYesterdayAndDate,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
 		},
 		{
 			name:          "yesterday and snapshot",
 			yesterday:     true,
 			expectedError: errorSnapshotNotToday,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
 		},
 		{
 			name:          "date and snapshot",
 			date:          "03.03",
 			expectedError: errorSnapshotNotToday,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			name:          "wrong day",
+			date:          "32.01",
+			hours:         1,
+			expectedError: errorInvalidDay,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			name:          "wrong month",
+			date:          "01.13",
+			hours:         1,
+			expectedError: errorInvalidMonth,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			name:          "wrong date format",
+			date:          "01:12",
+			hours:         1,
+			expectedError: errorInvalidDateFormat,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			name:          "negative hours",
+			hours:         -1,
+			expectedError: errorWrongDuration,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
+		},
+		{
+			name:          "negative minutes",
+			minutes:       -30,
+			expectedError: errorWrongDuration,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
 		},
 		{
 			name:          "valid",
@@ -433,6 +478,7 @@ func TestAssertFlagsAreValid(t *testing.T) {
 			hours:         1,
 			minutes:       30,
 			expectedError: nil,
+			customTimer:   timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
 		},
 	}
 
@@ -446,7 +492,7 @@ func TestAssertFlagsAreValid(t *testing.T) {
 			cmd.Flags().Int("hours", tt.hours, "")
 			cmd.Flags().Int("minutes", tt.minutes, "")
 
-			err := assertFlagsAreValid(cmd)
+			err := assertFlagsAreValid(cmd, tt.customTimer)
 
 			if tt.expectedError == nil {
 				assert.NoError(t, err)

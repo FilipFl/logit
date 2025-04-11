@@ -10,7 +10,6 @@ func NewMockConfigurationHandler() *MockConfigurationHandler {
 		cfg: &Config{
 			JiraOrigin:       "",
 			JiraToken:        "",
-			JiraEmail:        "",
 			JiraTokenEnvName: "",
 			Aliases:          map[string]string{},
 			Snapshot:         nil,

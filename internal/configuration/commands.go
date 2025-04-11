@@ -3,6 +3,7 @@ package configuration
 import (
 	"fmt"
 
+	"github.com/FilipFl/logit/internal/prompter"
 	"github.com/spf13/cobra"
 )
 
@@ -48,16 +49,58 @@ func NewSetTokenEnvNameCommand(cfgHandler ConfigurationHandler) *cobra.Command {
 	}
 }
 
-func NewSetEmailCommand(cfgHandler ConfigurationHandler) *cobra.Command {
+func NewInitCommand(cfgHandler ConfigurationHandler, prompter prompter.Prompter) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-email [email]",
-		Short: "Set Jira user email",
+		Use:   "init",
+		Short: "Initialize config. Logit will prompt for Jira origin, and Your Jira PAT Access",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg := cfgHandler.LoadConfig()
-			cfg.JiraEmail = args[0]
+			origin, err := prompter.PromptForString("", "Please enter Jira origin (schema + host): ")
+			if err != nil {
+				fmt.Println("operation aborted ", err)
+				return
+			}
+			cfg.JiraOrigin = origin
+			directToken, err := prompter.PromptForApprove("Do You want to provide Personal Access Token directly to be stored in config file?")
+			if err != nil {
+				fmt.Println("operation aborted ", err)
+			}
+			if directToken {
+				token, err := prompter.PromptForString("", "Please enter Your Personal Access Token: ")
+				if err != nil {
+					fmt.Println("operation aborted ", err)
+					return
+				}
+				cfg.JiraToken = token
+			} else {
+				tokenEnvName, err := prompter.PromptForString("", "Please enter token environmental variable name: ")
+				if err != nil {
+					fmt.Println("operation aborted ", err)
+					return
+				}
+				cfg.JiraTokenEnvName = tokenEnvName
+			}
 			cfgHandler.SaveConfig(cfg)
-			fmt.Println("Jira user email updated.")
+			fmt.Println("Jira config saved")
+		},
+	}
+}
+
+func NewSwitchTrustGitBranchCommand(cfgHandler ConfigurationHandler) *cobra.Command {
+	return &cobra.Command{
+		Use:   "trustGitBranch",
+		Short: "Switch value of trustGitBranch variable - if true logit will not prompt for confirmation of a task extracted from git branch",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg := cfgHandler.LoadConfig()
+			cfg.TrustGitBranch = !cfg.TrustGitBranch
+			cfgHandler.SaveConfig(cfg)
+			if cfg.TrustGitBranch {
+				fmt.Println("logit will automatically extract task from git branch and wont ask for confirmation")
+			} else {
+				fmt.Println("logit will prompt for confirmation of a task extracted from git branch")
+			}
 		},
 	}
 }

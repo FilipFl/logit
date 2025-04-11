@@ -32,7 +32,8 @@ func main() {
 	setHostCmd := configuration.NewSetOriginCommand(config)
 	setTokenCmd := configuration.NewSetTokenCommand(config)
 	setTokenEnvNameCmd := configuration.NewSetTokenEnvNameCommand(config)
-	setEmailCmd := configuration.NewSetEmailCommand(config)
+	initCmd := configuration.NewInitCommand(config, prompter)
+	trustGitBranchCmd := configuration.NewSwitchTrustGitBranchCommand(config)
 
 	setAliasCmd := commands.NewSetAliasCommand(config, prompter)
 	removeAliasCmd := commands.NewRemoveAliasCommand(config)
@@ -43,7 +44,7 @@ func main() {
 	myTasksCmd := commands.NewMyTasksCommand(jiraClient)
 	logCmd := commands.NewLogCommand(config, prompter, gitHandler, timer, jiraClient)
 
-	configCmd.AddCommand(setHostCmd, setTokenCmd, setEmailCmd, setTokenEnvNameCmd)
+	configCmd.AddCommand(setHostCmd, setTokenCmd, setTokenEnvNameCmd, initCmd, trustGitBranchCmd)
 
 	aliasCmd.AddCommand(setAliasCmd, listAliasesCmd, removeAliasCmd)
 

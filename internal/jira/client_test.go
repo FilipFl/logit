@@ -13,7 +13,7 @@ import (
 
 func TestLogTime_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/rest/api/3/issue/TEST-123/worklog", r.URL.Path)
+		assert.Equal(t, "/rest/api/2/issue/TEST-123/worklog", r.URL.Path)
 		assert.Equal(t, "POST", r.Method)
 
 		body, _ := io.ReadAll(r.Body)
@@ -25,7 +25,6 @@ func TestLogTime_Success(t *testing.T) {
 
 	mockCfg := configuration.NewMockConfigurationHandler()
 	mockCfg.SetConfig(&configuration.Config{
-		JiraEmail:  "user@example.com",
 		JiraOrigin: server.URL,
 		JiraToken:  "token123",
 	})
@@ -44,7 +43,6 @@ func TestLogTime_FailureStatus(t *testing.T) {
 
 	mockCfg := configuration.NewMockConfigurationHandler()
 	mockCfg.SetConfig(&configuration.Config{
-		JiraEmail:  "user@example.com",
 		JiraOrigin: server.URL,
 		JiraToken:  "token123",
 	})
@@ -76,7 +74,7 @@ func TestGetAssignedIssues_Success(t *testing.T) {
 	}`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/rest/api/3/search/jql", r.URL.Path)
+		assert.Equal(t, "/rest/api/2/search", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(responseJSON))
 	}))
@@ -84,7 +82,6 @@ func TestGetAssignedIssues_Success(t *testing.T) {
 
 	mockCfg := configuration.NewMockConfigurationHandler()
 	mockCfg.SetConfig(&configuration.Config{
-		JiraEmail:  "user@example.com",
 		JiraOrigin: server.URL,
 		JiraToken:  "token123",
 	})
@@ -101,7 +98,6 @@ func TestGetAssignedIssues_Success(t *testing.T) {
 func TestGetAssignedIssues_HTTPError(t *testing.T) {
 	mockCfg := configuration.NewMockConfigurationHandler()
 	mockCfg.SetConfig(&configuration.Config{
-		JiraEmail:  "user@example.com",
 		JiraOrigin: "nonexistent.invalid", // force HTTP error
 		JiraToken:  "token123",
 	})

@@ -98,5 +98,6 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 	cmd.Flags().BoolP("yesterday", "y", false, "Log time for yesterday")
 	cmd.Flags().StringP("date", "d", "", "Date in format dd-mm, present year is assumed")
 	cmd.Flags().BoolP("reset", "r", false, "Reset snapshot")
+	cmd.Flags().BoolP("force", "f", false, "Force approve when prompted")
 	return cmd
 }

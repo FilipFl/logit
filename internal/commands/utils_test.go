@@ -28,6 +28,7 @@ func TestDetermineTask(t *testing.T) {
 		config                   *configuration.Config
 		expectedTask             string
 		expectedError            error
+		forceFlag                bool
 	}{
 		{
 			name:          "WithTaskFlag",
@@ -88,6 +89,22 @@ func TestDetermineTask(t *testing.T) {
 			prompterApproveErrors:    []error{nil},
 		},
 		{
+			name:         "WithGitBranchAndTrustGitBranchTrue",
+			gitBranch:    "FEAT-789",
+			gitError:     nil,
+			expectedTask: "FEAT-789",
+			config: &configuration.Config{
+				TrustGitBranch: true,
+			},
+		},
+		{
+			name:         "WithGitBranchAndForceFlag",
+			gitBranch:    "FEAT-789",
+			gitError:     nil,
+			expectedTask: "FEAT-789",
+			forceFlag:    true,
+		},
+		{
 			name:                     "WithNotOnlyGitBranch",
 			gitBranch:                "feature/FEAT-789",
 			expectedTask:             "FEAT-789",
@@ -140,6 +157,7 @@ func TestDetermineTask(t *testing.T) {
 			cmd := &cobra.Command{}
 			cmd.Flags().String("task", tt.taskFlag, "")
 			cmd.Flags().String("alias", tt.aliasFlag, "")
+			cmd.Flags().Bool("force", tt.forceFlag, "")
 
 			task, err := determineTask(cmd, cfgHandlerMock, prompterMock, gitHandlerMock)
 

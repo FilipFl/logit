@@ -47,7 +47,7 @@ Or using Make:
 
 | Command | Description                       |
 | ------- | --------------------------------- |
-| log     | Log time to a Jira task         |
+| log     | Log time to a Jira task           |
 | config  | Set of configuration commands     |
 | alias   | Set of alias commands             |
 | start   | Start time measure in this moment |
@@ -56,14 +56,14 @@ Or using Make:
 
 ### Config Level
 
-| Command                          | Description                                                                                                                     |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| config init                      | Set needed configs                                                                                                              |
-| config set-origin [origin]       | Set Jira origin (schema + host)                                                                                                 |
-| config set-token  [token]        | Set personal Jira token                                                                                                         |
-| config set-token-env-name [name] | Set name of environmental variable where logit can find jira token                                                              |
+| Command                          | Description                                                                                                                   |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| config init                      | Set needed configs                                                                                                            |
+| config set-origin [origin]       | Set Jira origin (schema + host)                                                                                               |
+| config set-token  [token]        | Set personal Jira token                                                                                                       |
+| config set-token-env-name [name] | Set name of environmental variable where logit can find jira token                                                            |
 | config trustGitBranch            | Change value of trust git branch variable (if `true` logit will not prompt for approve of task key extracted from git branch) |
-| config help                      | Show help for any command                                                                                                       |
+| config help                      | Show help for any command                                                                                                     |
 
 ### Alias Level
 
@@ -81,7 +81,7 @@ Or using Make:
 | Flag        | Flag shorthand | Description                                                                                                   | Example                     |
 | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------- |
 | --task      | --t            | Jira task key (if ommitted with `alias` flag git branch is inspected)                                         | --tassk JIRA-123            |
-| --alias     | --a            | Jira task key alias (if ommitted with `task` flag git branch is inspected)                                  | --alias myTask              |
+| --alias     | --a            | Jira task key alias (if ommitted with `task` flag git branch is inspected)                                    | --alias myTask              |
 | --hours     | --H            | Duration to log in hours (e.g. 1h) (if both `hours` and `minutes` flags are ommited time snapshot is used)    | --hours 1                   |
 | --minutes   | --m            | Duration to log in minutes (e.g. 30m) (if both `hours` and `minutes` flags are ommited time snapshot is used) | --minutes 30                |
 | --comment   | --c            | Worklog comment                                                                                               | --comment "Fixed login bug" |

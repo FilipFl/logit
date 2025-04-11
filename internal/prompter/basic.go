@@ -36,10 +36,10 @@ func (p *BasicPrompter) PromptForApprove(msg string) (bool, error) {
 func (p *BasicPrompter) PromptForString(infoMsg, promptMsg string) (string, error) {
 	fmt.Println(infoMsg)
 	fmt.Println(promptMsg)
-	promptedTask := ""
-	fmt.Scanln(&promptedTask)
-	if promptedTask != "" {
-		return promptedTask, nil
+	promptedString := ""
+	fmt.Scanln(&promptedString)
+	if promptedString != "" {
+		return promptedString, nil
 	}
 	return "", ErrorScanningUserInput
 }

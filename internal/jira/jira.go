@@ -112,9 +112,7 @@ func (c *JiraClient) callPost(endpoint string, jsonData []byte) (*http.Response,
 		return nil, err
 	}
 	url := fmt.Sprintf("%s%s", c.cfgHandler.LoadConfig().JiraOrigin, endpoint)
-	if !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "http://") {
-		return nil, errorNoProtocolInOrigin
-	}
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
@@ -134,6 +132,9 @@ func (c *JiraClient) assertConfigurationIsValid() error {
 	origin := c.cfgHandler.LoadConfig().JiraOrigin
 	if origin == "" {
 		return errorOriginNotConfigured
+	}
+	if !strings.HasPrefix(c.cfgHandler.LoadConfig().JiraOrigin, "https://") && !strings.HasPrefix(c.cfgHandler.LoadConfig().JiraOrigin, "http://") {
+		return errorNoProtocolInOrigin
 	}
 	return nil
 }

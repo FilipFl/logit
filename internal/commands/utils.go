@@ -70,10 +70,13 @@ func determineTask(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 		return promptForTask(prompter, "Current branch name does not contain task ID.")
 	}
 
-	proceed, err := prompter.PromptForApprove((fmt.Sprintf("Detected task ID %s in current branch name.", resultTask)))
-
-	if err != nil {
-		return promptForTask(prompter, "Error scanning proceed approve.")
+	force, _ := cmd.Flags().GetBool("force")
+	proceed := cfgHandler.LoadConfig().TrustGitBranch || force
+	if !proceed {
+		proceed, err = prompter.PromptForApprove((fmt.Sprintf("Detected task ID %s in current branch name.", resultTask)))
+		if err != nil {
+			return promptForTask(prompter, "Error scanning proceed approve.")
+		}
 	}
 
 	if proceed {

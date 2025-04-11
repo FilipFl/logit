@@ -25,7 +25,6 @@ func TestLogTime_Success(t *testing.T) {
 
 	mockCfg := configuration.NewMockConfigurationHandler()
 	mockCfg.SetConfig(&configuration.Config{
-		JiraEmail:  "user@example.com",
 		JiraOrigin: server.URL,
 		JiraToken:  "token123",
 	})
@@ -44,7 +43,6 @@ func TestLogTime_FailureStatus(t *testing.T) {
 
 	mockCfg := configuration.NewMockConfigurationHandler()
 	mockCfg.SetConfig(&configuration.Config{
-		JiraEmail:  "user@example.com",
 		JiraOrigin: server.URL,
 		JiraToken:  "token123",
 	})
@@ -84,7 +82,6 @@ func TestGetAssignedIssues_Success(t *testing.T) {
 
 	mockCfg := configuration.NewMockConfigurationHandler()
 	mockCfg.SetConfig(&configuration.Config{
-		JiraEmail:  "user@example.com",
 		JiraOrigin: server.URL,
 		JiraToken:  "token123",
 	})
@@ -101,7 +98,6 @@ func TestGetAssignedIssues_Success(t *testing.T) {
 func TestGetAssignedIssues_HTTPError(t *testing.T) {
 	mockCfg := configuration.NewMockConfigurationHandler()
 	mockCfg.SetConfig(&configuration.Config{
-		JiraEmail:  "user@example.com",
 		JiraOrigin: "nonexistent.invalid", // force HTTP error
 		JiraToken:  "token123",
 	})

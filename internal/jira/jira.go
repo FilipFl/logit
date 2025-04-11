@@ -35,8 +35,8 @@ func NewJiraClient(cfgHandler configuration.ConfigurationHandler) *JiraClient {
 	}
 }
 
-func (c *JiraClient) LogTime(ticket string, duration time.Duration, started time.Time, comment string) error {
-	endpoint := fmt.Sprintf("/rest/api/2/issue/%s/worklog", ticket)
+func (c *JiraClient) LogTime(taskKey string, duration time.Duration, started time.Time, comment string) error {
+	endpoint := fmt.Sprintf("/rest/api/2/issue/%s/worklog", taskKey)
 	timeSpent := fmt.Sprintf("%dh %dm", int(duration.Hours()), int(duration.Minutes())%60)
 	worklog := Worklog{
 		TimeSpent: timeSpent,

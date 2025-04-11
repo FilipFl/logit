@@ -3,7 +3,7 @@ package jira
 import "time"
 
 type Client interface {
-	LogTime(ticket string, duration time.Duration, started time.Time, comment string) error
+	LogTime(taskKey string, duration time.Duration, started time.Time, comment string) error
 	GetAssignedIssues() ([]Issue, error)
 }
 

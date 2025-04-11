@@ -47,7 +47,7 @@ func TestDetermineTask(t *testing.T) {
 			name:              "WithTaskFlagPassedProperlyAndPromptedBad",
 			taskFlag:          "not a task",
 			prompterResponses: []string{"also not a task"},
-			expectedError:     errorNoJiraTicket,
+			expectedError:     errorNoJiraTask,
 		},
 		{
 			name:         "WithTaskFlagAndFullURL",

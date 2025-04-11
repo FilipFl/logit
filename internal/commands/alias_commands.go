@@ -10,18 +10,18 @@ import (
 
 func NewSetAliasCommand(cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set [alias] [ticket]",
-		Short: "Set an alias for a Jira ticket",
+		Use:   "set [alias] [taskKey]",
+		Short: "Set an alias for a Jira task",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg := cfgHandler.LoadConfig()
-			ticket, err := extractJiraTicket(args[1])
+			taskKey, err := extractJiraTaskKey(args[1])
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 			if val, exists := cfg.Aliases[args[0]]; exists {
-				approve, err := prompter.PromptForApprove(fmt.Sprintf("Are You sure You want to overwrite alias %s: %s with task %s", args[0], val, ticket))
+				approve, err := prompter.PromptForApprove(fmt.Sprintf("Are You sure You want to overwrite alias %s: %s with task %s", args[0], val, taskKey))
 				if err != nil {
 					fmt.Println("Error setting an alias:", err)
 					return
@@ -30,10 +30,10 @@ func NewSetAliasCommand(cfgHandler configuration.ConfigurationHandler, prompter 
 					return
 				}
 			}
-			cfg.Aliases[args[0]] = ticket
+			cfg.Aliases[args[0]] = taskKey
 			cfgHandler.SaveConfig(cfg)
 
-			fmt.Printf("Alias %s set for ticket %s\n", args[0], args[1])
+			fmt.Printf("Alias %s set for task %s\n", args[0], args[1])
 		},
 	}
 }

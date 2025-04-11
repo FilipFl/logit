@@ -79,7 +79,7 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 			if err := client.LogTime(task, duration, dateStarted, comment); err != nil {
 				fmt.Println("Error logging time:", err)
 			} else {
-				fmt.Printf("Successfully logged %dh %dm for ticket %s\n", int(duration.Hours()), int(duration.Minutes())%60, task)
+				fmt.Printf("Successfully logged %dh %dm for task %s\n", int(duration.Hours()), int(duration.Minutes())%60, task)
 				reset, _ := cmd.Flags().GetBool("reset")
 				if fromSnapshot || reset {
 					cfg := cfgHandler.LoadConfig()

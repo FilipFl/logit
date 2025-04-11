@@ -14,13 +14,13 @@ import (
 
 const provideTaskMessage = "Provide task ID or task URL:"
 
-func extractJiraTicket(arg string) (string, error) {
+func extractJiraTaskKey(arg string) (string, error) {
 	re := regexp.MustCompile(`([A-Z]+-\d+)`)
 	matches := re.FindStringSubmatch(arg)
 	if len(matches) > 1 {
 		return matches[1], nil
 	}
-	return "", errorNoJiraTicket
+	return "", errorNoJiraTask
 }
 
 func promptForTask(prompter prompter.Prompter, msg string) (string, error) {
@@ -28,7 +28,7 @@ func promptForTask(prompter prompter.Prompter, msg string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return extractJiraTicket(userPromptedMessage)
+	return extractJiraTaskKey(userPromptedMessage)
 }
 
 func determineTask(cmd *cobra.Command, cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, gitHandler git.GitHandler) (string, error) {
@@ -54,7 +54,7 @@ func determineTask(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 	}
 
 	if task != "" {
-		resultTask, err := extractJiraTicket(task)
+		resultTask, err := extractJiraTaskKey(task)
 		if err == nil {
 			return resultTask, nil
 		}
@@ -65,7 +65,7 @@ func determineTask(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 		return promptForTask(prompter, "Current directory is not a git repository or something failed during branch name extraction.")
 	}
 
-	resultTask, err = extractJiraTicket(gitBranch)
+	resultTask, err = extractJiraTaskKey(gitBranch)
 	if err != nil {
 		return promptForTask(prompter, "Current branch name does not contain task ID.")
 	}

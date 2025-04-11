@@ -53,7 +53,7 @@ func NewInitCommand(cfgHandler ConfigurationHandler, prompter prompter.Prompter)
 	return &cobra.Command{
 		Use:   "init",
 		Short: "Initialize config. Logit will prompt for Jira origin, and Your Jira PAT Access",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg := cfgHandler.LoadConfig()
 			origin, err := prompter.PromptForString("", "Please enter Jira origin (schema + host): ")
@@ -91,7 +91,7 @@ func NewSwitchTrustGitBranchCommand(cfgHandler ConfigurationHandler) *cobra.Comm
 	return &cobra.Command{
 		Use:   "trustGitBranch",
 		Short: "Switch value of trustGitBranch variable - if true logit will not prompt for confirmation of a task extracted from git branch",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg := cfgHandler.LoadConfig()
 			cfg.TrustGitBranch = !cfg.TrustGitBranch

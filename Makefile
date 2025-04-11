@@ -9,4 +9,6 @@ run:
 
 install: build
 	sudo cp bin/logit /usr/local/bin/logit
-	logit config init
+
+allow-autocompletion:
+	logit completion bash > /etc/bash_completion.d/logit

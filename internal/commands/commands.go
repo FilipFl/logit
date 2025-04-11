@@ -99,5 +99,12 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 	cmd.Flags().StringP("date", "d", "", "Date in format dd-mm, present year is assumed")
 	cmd.Flags().BoolP("reset", "r", false, "Reset snapshot")
 	cmd.Flags().BoolP("force", "f", false, "Force approve when prompted")
+	cmd.RegisterFlagCompletionFunc("alias", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		aliases := []string{}
+		for alias := range cfgHandler.LoadConfig().Aliases {
+			aliases = append(aliases, alias)
+		}
+		return aliases, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }

@@ -39,6 +39,8 @@ if You wish to allow alias auto completion run:
 
     logit log --task JIRA-123 -H 2 --comment "Worked on backend bug" // will log 2 hours for task JIRA-123 for today
 
+    logit log --task https://your-jira-host.com/issue/JIRA-111 -m 30 -c "Worked on frontend bug" // will log 30 minutes for task JIRA-111 for today
+
     logit log -a daily -m 20  // will log 20 minutes for task aliased by "daily"
 
     logit log -H 5 -y // will log 5 hours, for the task mentioned in current git branch, for the yesterday
@@ -85,7 +87,7 @@ if You wish to allow alias auto completion run:
 
 | Flag        | Flag shorthand | Description                                                                                                   | Example                     |
 | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| --task      | -t             | Jira task key (if ommitted with `alias` flag git branch is inspected)                                         | --task JIRA-123             |
+| --task      | -t             | Jira task key / task url (if ommitted with `alias` flag git branch is inspected)                              | --task JIRA-123             |
 | --alias     | -a             | Jira task key alias (if ommitted with `task` flag git branch is inspected)                                    | --alias myTask              |
 | --hours     | -H             | Duration to log in hours (e.g. 1h) (if both `hours` and `minutes` flags are ommited time snapshot is used)    | --hours 1                   |
 | --minutes   | -m             | Duration to log in minutes (e.g. 30m) (if both `hours` and `minutes` flags are ommited time snapshot is used) | --minutes 30                |

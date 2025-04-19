@@ -49,6 +49,20 @@ func NewSetTokenEnvNameCommand(cfgHandler ConfigurationHandler) *cobra.Command {
 	}
 }
 
+func NewSetEmailCommand(cfgHandler ConfigurationHandler) *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-email [email]",
+		Short: "Set Your jira email",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg := cfgHandler.LoadConfig()
+			cfg.JiraEmail = args[0]
+			cfgHandler.SaveConfig(cfg)
+			fmt.Println("Jira email updated.")
+		},
+	}
+}
+
 func NewInitCommand(cfgHandler ConfigurationHandler, prompter prompter.Prompter) *cobra.Command {
 	return &cobra.Command{
 		Use:   "init",
@@ -62,6 +76,12 @@ func NewInitCommand(cfgHandler ConfigurationHandler, prompter prompter.Prompter)
 				return
 			}
 			cfg.JiraOrigin = origin
+			email, err := prompter.PromptForString("", "Please enter Jira email: ")
+			if err != nil {
+				fmt.Println("operation aborted ", err)
+				return
+			}
+			cfg.JiraEmail = email
 			directToken, err := prompter.PromptForApprove("Do You want to provide Personal Access Token directly to be stored in config file?")
 			if err != nil {
 				fmt.Println("operation aborted ", err)

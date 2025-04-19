@@ -42,13 +42,14 @@ func main() {
 	startTimerCmd := commands.NewStartTimerCommand(config, timer)
 
 	myTasksCmd := commands.NewMyTasksCommand(jiraClient)
+	myWorklogsCmd := commands.NewMyWorklogsCommand(jiraClient)
 	logCmd := commands.NewLogCommand(config, prompter, gitHandler, timer, jiraClient)
 
 	configCmd.AddCommand(setHostCmd, setTokenCmd, setTokenEnvNameCmd, initCmd, trustGitBranchCmd)
 
 	aliasCmd.AddCommand(setAliasCmd, listAliasesCmd, removeAliasCmd)
 
-	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd, aliasCmd, myTasksCmd)
+	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd, aliasCmd, myTasksCmd, myWorklogsCmd)
 
 	rootCmd.Execute()
 }

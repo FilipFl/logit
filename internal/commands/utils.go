@@ -204,3 +204,44 @@ func determineStarted(cmd *cobra.Command, timer timer.Timer) (time.Time, error) 
 
 	return timer.Now(), nil
 }
+
+func truncateString(s string, truncateLength int) string {
+	if len(s) < truncateLength+3 {
+		return s
+	}
+	return s[:truncateLength] + "..."
+}
+
+func assertWorklogsFlagsAreValid(cmd *cobra.Command) error {
+	today, _ := cmd.Flags().GetBool("today")
+	yesterday, _ := cmd.Flags().GetBool("yesterday")
+	week, _ := cmd.Flags().GetBool("week")
+	days, _ := cmd.Flags().GetInt("days")
+	if (today && yesterday) || (today && week) || (yesterday && week) || (today && days > 0) || (yesterday && days > 0) || (week && days > 0) {
+		return errorConflictingWorklogsFlags
+	}
+	if days > 14 {
+		return errorTooBigDayRange
+	}
+	return nil
+}
+
+func worklogsFromHowManyDays(cmd *cobra.Command) int {
+	today, _ := cmd.Flags().GetBool("today")
+	if today {
+		return 1
+	}
+	yesterday, _ := cmd.Flags().GetBool("yesterday")
+	if yesterday {
+		return 2
+	}
+	week, _ := cmd.Flags().GetBool("week")
+	if week {
+		return 8
+	}
+	days, _ := cmd.Flags().GetInt("days")
+	if days != 0 {
+		return days
+	}
+	return 8
+}

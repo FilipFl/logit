@@ -6,6 +6,7 @@ type Config struct {
 	JiraOrigin       string            `json:"jira_origin"`
 	JiraToken        string            `json:"jira_token"`
 	JiraTokenEnvName string            `json:"jira_token_env_name"`
+	JiraEmail        string            `json:"jira_email"`
 	Aliases          map[string]string `json:"aliases"`
 	Snapshot         *time.Time        `json:"snapshot"`
 	TrustGitBranch   bool              `json:"trustGitBranch"`

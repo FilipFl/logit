@@ -2,10 +2,14 @@ package commands
 
 import (
 	"fmt"
+	"os"
+
+	"text/tabwriter"
 
 	"github.com/FilipFl/logit/internal/configuration"
 	"github.com/FilipFl/logit/internal/git"
 	"github.com/FilipFl/logit/internal/jira"
+	"github.com/FilipFl/logit/internal/printer"
 	"github.com/FilipFl/logit/internal/prompter"
 	"github.com/FilipFl/logit/internal/timer"
 	"github.com/spf13/cobra"
@@ -37,11 +41,51 @@ func NewMyTasksCommand(client jira.Client) *cobra.Command {
 				fmt.Println("Error fetching assigned tasks:", err)
 				return
 			}
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.Debug)
 			for _, issue := range results {
-				fmt.Printf("Task: %s, Summary: %s, Status: %s\n", issue.Key, issue.Summary, issue.Status)
+				fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t", issue.Key, truncateString(issue.Summary, 37), issue.Status))
+			}
+			w.Flush()
+		},
+	}
+}
+
+func NewMyWorklogsCommand(client jira.Client) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "worklogs",
+		Short: "List my worklogs",
+		Args:  nil,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := assertWorklogsFlagsAreValid(cmd)
+			if err != nil {
+				fmt.Println("Passed flags are invalid:", err)
+				return
+			}
+			fromDays := worklogsFromHowManyDays(cmd)
+			results, err := client.GetLoggedTime(fromDays)
+			if err != nil {
+				fmt.Println("Error fetching assigned tasks:", err)
+				return
+			}
+			if len(results.Days) == 0 {
+				fmt.Println("no time logged in specified time range")
+				return
+			}
+			for _, day := range results.Days {
+				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', tabwriter.Debug)
+				for _, log := range day.Worklogs {
+					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t", log.TaskKey, log.StringLoggedTime(), truncateString(log.Summary, 40)))
+				}
+				printer.PrintGreen(fmt.Sprintf("%s (%s) - %dh %dm\n", day.DateString(), day.Date.Weekday(), int(day.TimeLogged.Hours()), int(day.TimeLogged)%60))
+				w.Flush()
 			}
 		},
 	}
+	cmd.Flags().BoolP("today", "t", false, "Return worklogs from today")
+	cmd.Flags().BoolP("yesterday", "y", false, "Return worklogs from yesterday and today")
+	cmd.Flags().BoolP("week", "w", false, "Return worklogs from last week")
+	cmd.Flags().IntP("days", "d", 0, "Return worklogs from X days")
+	return cmd
 }
 
 func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, gitHandler git.GitHandler, timer timer.Timer, client jira.Client) *cobra.Command {

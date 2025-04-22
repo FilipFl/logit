@@ -25,7 +25,8 @@ func TestDetermineTask(t *testing.T) {
 		prompterErrors           []error
 		prompterApproveResponses []bool
 		prompterApproveErrors    []error
-		config                   *configuration.Config
+		config                   *configuration.Cfg
+		configError              error
 		expectedTask             string
 		expectedError            error
 		forceFlag                bool
@@ -57,7 +58,7 @@ func TestDetermineTask(t *testing.T) {
 		{
 			name:      "WithAlias",
 			aliasFlag: "bugfix",
-			config: &configuration.Config{
+			config: &configuration.Cfg{
 				Aliases: map[string]string{"bugfix": "BUG-456"},
 			},
 			expectedTask: "BUG-456",
@@ -66,18 +67,20 @@ func TestDetermineTask(t *testing.T) {
 			name:              "WithNotSetAliasButPromptedProperly",
 			aliasFlag:         "notbugfix",
 			prompterResponses: []string{"bugfix"},
-			config: &configuration.Config{
+			config: &configuration.Cfg{
 				Aliases: map[string]string{"bugfix": "BUG-456"},
 			},
+			configError:  configuration.ErrorAliasDontExists,
 			expectedTask: "BUG-456",
 		},
 		{
 			name:              "WithNotSetAliasAndPromptedBadly",
 			aliasFlag:         "notbugfix",
 			prompterResponses: []string{"BUG-456"},
-			config: &configuration.Config{
+			config: &configuration.Cfg{
 				Aliases: map[string]string{"bugfix": "BUG-456"},
 			},
+			configError:   configuration.ErrorAliasDontExists,
 			expectedError: errorNoTargetToLogWork,
 		},
 		{
@@ -93,7 +96,7 @@ func TestDetermineTask(t *testing.T) {
 			gitBranch:    "FEAT-789",
 			gitError:     nil,
 			expectedTask: "FEAT-789",
-			config: &configuration.Config{
+			config: &configuration.Cfg{
 				TrustGitBranch: true,
 			},
 		},
@@ -134,9 +137,12 @@ func TestDetermineTask(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfgHandlerMock := configuration.NewMockConfigurationHandler()
+			cfgHandlerMock := configuration.NewMockConfig(nil)
 			if tt.config != nil {
 				cfgHandlerMock.SetConfig(tt.config)
+			}
+			if tt.configError != nil {
+				cfgHandlerMock.SetError(tt.configError)
 			}
 			prompterMock := prompter.NewMockPrompter()
 			if tt.prompterResponses != nil {
@@ -181,7 +187,7 @@ func TestParseDuration(t *testing.T) {
 		prompterErrors           []error
 		prompterApproveResponses []bool
 		prompterApproveErrors    []error
-		config                   *configuration.Config
+		config                   *configuration.Cfg
 		timer                    timer.Timer
 		expectedDuration         time.Duration
 		expectedFromSnapshot     bool
@@ -213,14 +219,14 @@ func TestParseDuration(t *testing.T) {
 			name:                 "WithoutAnyFlagWithSnapshot",
 			expectedDuration:     time.Duration(1) * time.Hour,
 			timer:                timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
-			config:               &configuration.Config{Snapshot: timer.ParseStringToTime("2025-01-04T13:00:00.000Z")},
+			config:               &configuration.Cfg{Snapshot: timer.ParseStringToTime("2025-01-04T13:00:00.000Z")},
 			expectedFromSnapshot: true,
 		},
 		{
 			name:                     "WithoutAnyFlagWith9hSnapshotAndApprove",
 			expectedDuration:         time.Duration(9) * time.Hour,
 			timer:                    timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
-			config:                   &configuration.Config{Snapshot: timer.ParseStringToTime("2025-01-04T05:00:00.000Z")},
+			config:                   &configuration.Cfg{Snapshot: timer.ParseStringToTime("2025-01-04T05:00:00.000Z")},
 			prompterApproveResponses: []bool{true},
 			prompterApproveErrors:    []error{nil},
 			expectedFromSnapshot:     true,
@@ -230,7 +236,7 @@ func TestParseDuration(t *testing.T) {
 			expectedDuration:         time.Duration(0),
 			expectedError:            errorOperationAborted,
 			timer:                    timer.NewMockTimer("2025-01-04T14:00:00.000Z"),
-			config:                   &configuration.Config{Snapshot: timer.ParseStringToTime("2025-01-04T05:00:00.000Z")},
+			config:                   &configuration.Cfg{Snapshot: timer.ParseStringToTime("2025-01-04T05:00:00.000Z")},
 			prompterApproveResponses: []bool{false},
 			prompterApproveErrors:    []error{nil},
 			expectedFromSnapshot:     true,
@@ -259,7 +265,7 @@ func TestParseDuration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfgHandlerMock := configuration.NewMockConfigurationHandler()
+			cfgHandlerMock := configuration.NewMockConfig(nil)
 			if tt.config != nil {
 				cfgHandlerMock.SetConfig(tt.config)
 			}

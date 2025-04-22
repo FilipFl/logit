@@ -15,16 +15,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewStartTimerCommand(cfgHandler configuration.ConfigurationHandler, timer timer.Timer) *cobra.Command {
+func NewStartTimerCommand(cfg configuration.Config, timer timer.Timer) *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
 		Short: "Start measuring time from this moment",
 		Args:  nil,
 		Run: func(cmd *cobra.Command, args []string) {
-			cfg := cfgHandler.LoadConfig()
 			now := timer.Now()
-			cfg.Snapshot = &now
-			cfgHandler.SaveConfig(cfg)
+			err := cfg.SetSnapshot(&now)
+			if err != nil {
+				fmt.Println("Failed starting to measure time:", err)
+				return
+			}
 			fmt.Println("Started to measure time.")
 		},
 	}
@@ -43,7 +45,7 @@ func NewMyTasksCommand(client jira.Client) *cobra.Command {
 			}
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.Debug)
 			for _, issue := range results {
-				fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t", issue.Key, truncateString(issue.Summary, 37), issue.Status))
+				fmt.Fprintf(w, "%s\t%s\t%s\t\n", issue.Key, truncateString(issue.Summary, 37), issue.Status)
 			}
 			w.Flush()
 		},
@@ -74,7 +76,7 @@ func NewMyWorklogsCommand(client jira.Client) *cobra.Command {
 			for _, day := range results.Days {
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', tabwriter.Debug)
 				for _, log := range day.Worklogs {
-					fmt.Fprintln(w, fmt.Sprintf("%s\t%s\t%s\t", log.TaskKey, log.StringLoggedTime(), truncateString(log.Summary, 40)))
+					fmt.Fprintf(w, "%s\t%s\t%s\t\n", log.TaskKey, log.StringLoggedTime(), truncateString(log.Summary, 40))
 				}
 				printer.PrintGreen(fmt.Sprintf("%s (%s) - %dh %dm\n", day.DateString(), day.Date.Weekday(), int(day.TimeLogged.Hours()), int(day.TimeLogged)%60))
 				w.Flush()
@@ -84,11 +86,11 @@ func NewMyWorklogsCommand(client jira.Client) *cobra.Command {
 	cmd.Flags().BoolP("today", "t", false, "Return worklogs from today")
 	cmd.Flags().BoolP("yesterday", "y", false, "Return worklogs from yesterday and today")
 	cmd.Flags().BoolP("week", "w", false, "Return worklogs from last week")
-	cmd.Flags().IntP("days", "d", 0, "Return worklogs from X days")
+	cmd.Flags().IntP("days", "d", 0, "Return worklogs from X days (X must be less or equal than 14)")
 	return cmd
 }
 
-func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, gitHandler git.GitHandler, timer timer.Timer, client jira.Client) *cobra.Command {
+func NewLogCommand(cfg configuration.Config, prompter prompter.Prompter, gitHandler git.GitHandler, timer timer.Timer, client jira.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log",
 		Short: "Log time to Jira",
@@ -99,7 +101,7 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 				return
 			}
 
-			task, err := determineTask(cmd, cfgHandler, prompter, gitHandler)
+			task, err := determineTask(cmd, cfg, prompter, gitHandler)
 			if err != nil {
 				fmt.Println("Error assessing task to log time:", err)
 				return
@@ -108,7 +110,7 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 				fmt.Println("No target indicated for time logging.")
 				return
 			}
-			duration, fromSnapshot, err := parseDuration(cmd, cfgHandler, prompter, timer)
+			duration, fromSnapshot, err := parseDuration(cmd, cfg, prompter, timer)
 			if err != nil {
 				fmt.Println("Invalid log work duration:", err)
 				return
@@ -126,10 +128,12 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 				fmt.Printf("Successfully logged %dh %dm for task %s\n", int(duration.Hours()), int(duration.Minutes())%60, task)
 				reset, _ := cmd.Flags().GetBool("reset")
 				if fromSnapshot || reset {
-					cfg := cfgHandler.LoadConfig()
 					now := timer.Now()
-					cfg.Snapshot = &now
-					cfgHandler.SaveConfig(cfg)
+					err := cfg.SetSnapshot(&now)
+					if err != nil {
+						fmt.Println("Failed starting to measure time:", err)
+						return
+					}
 				}
 			}
 		},
@@ -145,7 +149,7 @@ func NewLogCommand(cfgHandler configuration.ConfigurationHandler, prompter promp
 	cmd.Flags().BoolP("force", "f", false, "Force approve when prompted")
 	cmd.RegisterFlagCompletionFunc("alias", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		aliases := []string{}
-		for alias := range cfgHandler.LoadConfig().Aliases {
+		for alias := range cfg.GetAliases() {
 			aliases = append(aliases, alias)
 		}
 		return aliases, cobra.ShellCompDirectiveNoFileComp

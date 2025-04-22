@@ -14,7 +14,7 @@ import (
 )
 
 type JiraClient struct {
-	cfgHandler configuration.ConfigurationHandler
+	config configuration.Config
 }
 
 type Worklog struct {
@@ -30,9 +30,9 @@ type SearchJql struct {
 	StartAt    int      `json:"startAt"`
 }
 
-func NewJiraClient(cfgHandler configuration.ConfigurationHandler) *JiraClient {
+func NewJiraClient(config configuration.Config) *JiraClient {
 	return &JiraClient{
-		cfgHandler,
+		config,
 	}
 }
 
@@ -153,7 +153,7 @@ func (c *JiraClient) GetLoggedTime(fromDays int) (Logs, error) {
 			}
 
 			for _, log := range logs {
-				if strings.ToLower(log.Author.Email) != strings.ToLower(c.cfgHandler.LoadConfig().JiraEmail) {
+				if strings.ToLower(log.Author.Email) != strings.ToLower(c.config.GetJiraEmail()) {
 					continue
 				}
 				startTime, err := time.Parse("2006-01-02T15:04:05.000-0700", log.Started)
@@ -218,7 +218,7 @@ func (c *JiraClient) callPost(endpoint string, jsonData []byte, validateFunc fun
 	if err != nil {
 		return nil, err
 	}
-	url := fmt.Sprintf("%s%s", c.cfgHandler.LoadConfig().JiraOrigin, endpoint)
+	url := fmt.Sprintf("%s%s", c.config.GetJiraOrigin(), endpoint)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -226,7 +226,7 @@ func (c *JiraClient) callPost(endpoint string, jsonData []byte, validateFunc fun
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.cfgHandler.GetToken()))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.config.GetToken()))
 	client := &http.Client{}
 	return client.Do(req)
 }
@@ -236,7 +236,7 @@ func (c *JiraClient) callGet(endpoint string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	url := fmt.Sprintf("%s%s", c.cfgHandler.LoadConfig().JiraOrigin, endpoint)
+	url := fmt.Sprintf("%s%s", c.config.GetJiraOrigin(), endpoint)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -244,24 +244,24 @@ func (c *JiraClient) callGet(endpoint string) (*http.Response, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.cfgHandler.GetToken()))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.config.GetToken()))
 	client := &http.Client{}
 	return client.Do(req)
 }
 
 func (c *JiraClient) assertConfigurationIsValid() error {
-	token := c.cfgHandler.GetToken()
+	token := c.config.GetToken()
 	if token == "" {
-		if c.cfgHandler.LoadConfig().JiraTokenEnvName != "" {
+		if c.config.GetJiraTokenEnvName() != "" {
 			return errorTokenEnvNameSetButEmpty
 		}
 		return errorTokenNotConfigured
 	}
-	origin := c.cfgHandler.LoadConfig().JiraOrigin
+	origin := c.config.GetJiraOrigin()
 	if origin == "" {
 		return errorOriginNotConfigured
 	}
-	if !strings.HasPrefix(c.cfgHandler.LoadConfig().JiraOrigin, "https://") && !strings.HasPrefix(c.cfgHandler.LoadConfig().JiraOrigin, "http://") {
+	if !strings.HasPrefix(c.config.GetJiraOrigin(), "https://") && !strings.HasPrefix(c.config.GetJiraOrigin(), "http://") {
 		return errorNoProtocolInOrigin
 	}
 	return nil
@@ -272,7 +272,7 @@ func (c *JiraClient) assertConfigurationForFetchingWorklogsIsValid() error {
 	if err != nil {
 		return err
 	}
-	email := c.cfgHandler.LoadConfig().JiraEmail
+	email := c.config.GetJiraEmail()
 	if email == "" {
 		return errorEmailNotConfigured
 	}

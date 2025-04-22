@@ -23,8 +23,7 @@ func TestLogTime_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	mockCfg := configuration.NewMockConfigurationHandler()
-	mockCfg.SetConfig(&configuration.Config{
+	mockCfg := configuration.NewMockConfig(&configuration.Cfg{
 		JiraOrigin: server.URL,
 		JiraToken:  "token123",
 	})
@@ -41,8 +40,7 @@ func TestLogTime_FailureStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	mockCfg := configuration.NewMockConfigurationHandler()
-	mockCfg.SetConfig(&configuration.Config{
+	mockCfg := configuration.NewMockConfig(&configuration.Cfg{
 		JiraOrigin: server.URL,
 		JiraToken:  "token123",
 	})
@@ -80,8 +78,7 @@ func TestGetAssignedIssues_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	mockCfg := configuration.NewMockConfigurationHandler()
-	mockCfg.SetConfig(&configuration.Config{
+	mockCfg := configuration.NewMockConfig(&configuration.Cfg{
 		JiraOrigin: server.URL,
 		JiraToken:  "token123",
 	})
@@ -96,8 +93,7 @@ func TestGetAssignedIssues_Success(t *testing.T) {
 }
 
 func TestGetAssignedIssues_HTTPError(t *testing.T) {
-	mockCfg := configuration.NewMockConfigurationHandler()
-	mockCfg.SetConfig(&configuration.Config{
+	mockCfg := configuration.NewMockConfig(&configuration.Cfg{
 		JiraOrigin: "nonexistent.invalid", // force HTTP error
 		JiraToken:  "token123",
 	})

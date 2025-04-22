@@ -31,26 +31,25 @@ func promptForTask(prompter prompter.Prompter, msg string) (string, error) {
 	return extractJiraTaskKey(userPromptedMessage)
 }
 
-func determineTask(cmd *cobra.Command, cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, gitHandler git.GitHandler) (string, error) {
-	aliases := cfgHandler.LoadConfig().Aliases
+func determineTask(cmd *cobra.Command, config configuration.Config, prompter prompter.Prompter, gitHandler git.GitHandler) (string, error) {
 	resultTask := ""
 	task, _ := cmd.Flags().GetString("task")
 	alias, _ := cmd.Flags().GetString("alias")
 	if alias != "" {
-		if resultTask, exists := aliases[alias]; exists {
+		resultTask, err := config.GetTaskFromAlias(alias)
+		if err == nil {
 			return resultTask, nil
-		} else {
-			alias, err := prompter.PromptForString("Passed alias was not found.", "Please pass proper alias this time")
-			if err != nil {
-				return "", err
-			}
-			if resultTask, exists := aliases[alias]; exists {
-				return resultTask, nil
-			} else {
-				fmt.Println("Passed alias was not found.")
-				return "", errorNoTargetToLogWork
-			}
 		}
+		alias, err := prompter.PromptForString("Passed alias was not found.", "Please pass proper alias this time")
+		if err != nil {
+			return "", err
+		}
+		resultTask, err = config.GetTaskFromAlias(alias)
+		if err == nil {
+			return resultTask, nil
+		}
+		fmt.Println("Passed alias was not found.")
+		return "", errorNoTargetToLogWork
 	}
 
 	if task != "" {
@@ -71,7 +70,7 @@ func determineTask(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 	}
 
 	force, _ := cmd.Flags().GetBool("force")
-	proceed := cfgHandler.LoadConfig().TrustGitBranch || force
+	proceed := config.GetTrustGitBranch() || force
 	if !proceed {
 		proceed, err = prompter.PromptForApprove((fmt.Sprintf("Detected task ID %s in current branch name.", resultTask)))
 		if err != nil {
@@ -116,7 +115,7 @@ func assertFlagsAreValid(cmd *cobra.Command, timer timer.Timer) error {
 	return nil
 }
 
-func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHandler, prompter prompter.Prompter, timer timer.Timer) (time.Duration, bool, error) {
+func parseDuration(cmd *cobra.Command, config configuration.Config, prompter prompter.Prompter, timer timer.Timer) (time.Duration, bool, error) {
 	result := time.Duration(0)
 	fromSnapshot := false
 	hours, _ := cmd.Flags().GetInt("hours")
@@ -125,11 +124,11 @@ func parseDuration(cmd *cobra.Command, cfgHandler configuration.ConfigurationHan
 		result = time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute
 	} else {
 		fromSnapshot = true
-		if cfgHandler.LoadConfig().Snapshot == nil {
+		if config.GetSnapshot() == nil {
 			return time.Duration(0), fromSnapshot, errorNoSnapshot
 		}
 		now := timer.Now()
-		result = now.Sub(*cfgHandler.LoadConfig().Snapshot)
+		result = now.Sub(*config.GetSnapshot())
 	}
 	if int(result.Hours()) > 8 {
 		proceed, err := prompter.PromptForApprove(fmt.Sprintf("Are You sure you want to log %d hours and %d minutes?", int(result.Hours()), int(result.Minutes())%60))

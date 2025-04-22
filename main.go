@@ -12,7 +12,7 @@ import (
 
 func main() {
 	prompter := prompter.NewBasicPrompter()
-	config := configuration.NewBasicConfigurationHandler()
+	config := configuration.NewBasicConfig()
 	gitHandler := git.NewBasicGitHandler()
 	timer := timer.NewBasicTimer()
 	jiraClient := jira.NewJiraClient(config)

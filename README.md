@@ -26,7 +26,7 @@ Using Make:
     // and follow with
     logit config init
 
-Using `go install`
+Using `go install`:
 
     go install github.com/FilipFli/logit
 

@@ -48,7 +48,7 @@ func (c *JiraClient) LogTime(taskKey string, duration time.Duration, started tim
 	if err != nil {
 		return err
 	}
-	resp, err := c.callPost(endpoint, jsonData)
+	resp, err := c.callPost(endpoint, jsonData, c.assertConfigurationIsValid)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (c *JiraClient) GetAssignedIssues() ([]Issue, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.callPost(endpoint, jsonData)
+	resp, err := c.callPost(endpoint, jsonData, c.assertConfigurationIsValid)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (c *JiraClient) GetLoggedTime(fromDays int) (Logs, error) {
 	if err != nil {
 		return resultLogs, err
 	}
-	resp, err := c.callPost(endpoint, jsonData)
+	resp, err := c.callPost(endpoint, jsonData, c.assertConfigurationForFetchingWorklogsIsValid)
 	if err != nil {
 		return resultLogs, err
 	}
@@ -172,7 +172,7 @@ func (c *JiraClient) GetLoggedTime(fromDays int) (Logs, error) {
 			}
 		}(issue)
 		i++
-		fmt.Println(fmt.Sprintf("Completed fetching %d/%d tasks.", i, len(result.Issues)))
+		fmt.Printf("Completed fetching %d/%d tasks.\n", i, len(result.Issues))
 	}
 
 	wg.Wait()
@@ -213,8 +213,8 @@ func (c *JiraClient) getAllWorklogs(issueKey string, days time.Duration) ([]Jira
 	return allWorklogs, nil
 }
 
-func (c *JiraClient) callPost(endpoint string, jsonData []byte) (*http.Response, error) {
-	err := c.assertConfigurationIsValid()
+func (c *JiraClient) callPost(endpoint string, jsonData []byte, validateFunc func() error) (*http.Response, error) {
+	err := validateFunc()
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +252,9 @@ func (c *JiraClient) callGet(endpoint string) (*http.Response, error) {
 func (c *JiraClient) assertConfigurationIsValid() error {
 	token := c.cfgHandler.GetToken()
 	if token == "" {
+		if c.cfgHandler.LoadConfig().JiraTokenEnvName != "" {
+			return errorTokenEnvNameSetButEmpty
+		}
 		return errorTokenNotConfigured
 	}
 	origin := c.cfgHandler.LoadConfig().JiraOrigin
@@ -273,4 +276,5 @@ func (c *JiraClient) assertConfigurationForFetchingWorklogsIsValid() error {
 	if email == "" {
 		return errorEmailNotConfigured
 	}
+	return nil
 }

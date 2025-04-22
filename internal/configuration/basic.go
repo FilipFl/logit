@@ -49,22 +49,6 @@ func NewBasicConfig() *BasicConfig {
 	return basicConfig
 }
 
-func (h *BasicConfig) SaveConfig(config *Cfg) error {
-	file, err := os.Create(h.cfgFilePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(config)
-	if err != nil {
-		return err
-	}
-	h.cfg = config
-	return nil
-}
-
 func (h *BasicConfig) persistCfg() error {
 	file, err := os.Create(h.cfgFilePath)
 	if err != nil {

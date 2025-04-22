@@ -31,7 +31,7 @@ func NewBasicConfig() *BasicConfig {
 	file, err := os.Open(fullConfigPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = basicConfig.SaveConfig(config)
+			err = basicConfig.persistCfg()
 			if err != nil {
 				panic(fmt.Sprintf("the deepest panic of them all: %s", err))
 			}

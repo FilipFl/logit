@@ -14,15 +14,21 @@ logit is compatible with jira onprem (won't work for jira cloud) and tested with
 
 ## Installation
 
+Cloning repo
+
     go build -o bin/logit // build binary
     sudo cp bin/logit /usr/local/bin/logit // copy it to bin directory 
     logit config init // let logit prompt You for needed settings
 
-Or using Make:
+Using Make:
 
     make install
     // and follow with
     logit config init
+
+Using `go install`
+
+    go install github.com/FilipFli/logit
 
 if You wish to allow alias auto completion run:
 
@@ -52,21 +58,23 @@ if You wish to allow alias auto completion run:
 
 ### Root Level
 
-| Command | Description                       |
-| ------- | --------------------------------- |
-| log     | Log time to a Jira task           |
-| config  | Set of configuration commands     |
-| alias   | Set of alias commands             |
-| start   | Start time measure in this moment |
-| tasks   | List tasks assigned to You        |
-| help    | Show help for any command         |
+| Command  | Description                       |
+| -------- | --------------------------------- |
+| log      | Log time to a Jira task           |
+| config   | Set of configuration commands     |
+| alias    | Set of alias commands             |
+| start    | Start time measure in this moment |
+| worklogs | List worklogs You created         |
+| tasks    | List tasks assigned to You        |
+| help     | Show help for any command         |
 
 ### Config Level
 
 | Command                          | Description                                                                                                                   |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| config init                      | Set needed configs                                                                                                            |
+| config init                      | Set all needed configs                                                                                                        |
 | config set-origin [origin]       | Set Jira origin (schema + host)                                                                                               |
+| config set-email [email]         | Set Jira email                                                                                                                |
 | config set-token  [token]        | Set personal Jira token                                                                                                       |
 | config set-token-env-name [name] | Set name of environmental variable where logit can find jira token                                                            |
 | config trustGitBranch            | Change value of trust git branch variable (if `true` logit will not prompt for approve of task key extracted from git branch) |
@@ -97,6 +105,15 @@ if You wish to allow alias auto completion run:
 | --reset     | -r             | If used with `hours` or `minutes` flags forces to reset snapshot on time log                                  | --reset                     |
 | --force     | -f             | Forces all boolean prompts to pass                                                                            | -f                          |
 
+
+## Worklogs Flags
+
+| Flag        | Flag shorthand | Description                                                   | Example     |
+| ----------- | -------------- | ------------------------------------------------------------- | ----------- |
+| --today     | -t             | Return worklogs from today only                               | -t          |
+| --yesterday | -y             | Return worklogs from today and yesterday                      | --yesterday |
+| --week      | -w             | Return worklogs from last week                                | --week      |
+| --days      | -d             | Return worklogs from X last days (X must be less or equal 14) | -d 10       |
 ---
 
 ## Configuration
@@ -105,7 +122,7 @@ Logit uses a configuration file to preserve all needed data.
 
 It automatically creates a file at `~/.logit/config.yml` on first use.
 
-Feel free to edit it's safe to use config commands but feel free to edit it by hand.
+Feel free to edit it by hand but its safer to use config commands.
 
 ---
 

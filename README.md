@@ -2,11 +2,12 @@
 
 A simple CLI tool to log work time into Jira straight from your terminal. Allows to seemlesly log time into tasks You're working on without interrupting Your workflow.
 
-* safe - allows You to set environmental variable name instead of storing Your jira [Personal Access Token](https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html) in plain text
 * integrated with Git - if Your current branch contains task key You don't need to pass task explicitly
 * capable of measuring time - just use `logit start` when starting Your workday, each subsequent log will restart the time allowing precise measurement
 * allows to set aliases for the tasks You frequently log time on (and autocomplete them for You if You wish!)
 * provides one command to fetch all tasks You're assigned to
+* provides one command to open task in Your default browser
+* safe - allows You to set environmental variable name instead of storing Your jira [Personal Access Token](https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html) in plain text
 
 logit is compatible with jira onprem (won't work for jira cloud) and tested with jira software 9.12
 
@@ -14,21 +15,21 @@ logit is compatible with jira onprem (won't work for jira cloud) and tested with
 
 ## Installation
 
-Cloning repo
+* Clone repo and run: 
 
-    go build -o bin/logit // build binary
-    sudo cp bin/logit /usr/local/bin/logit // copy it to bin directory 
-    logit config init // let logit prompt You for needed settings
+        go build -o bin/logit // build binary
+        sudo cp bin/logit /usr/local/bin/logit // copy it to bin directory 
+        logit config init // let logit prompt You for needed settings
 
-Using Make:
+        // or use make
 
-    make install
-    // and follow with
-    logit config init
+        make install
+        // and follow with
+        logit config init
 
-Using `go install`:
+* Using `go install`:
 
-    go install github.com/FilipFli/logit
+        go install github.com/FilipFli/logit
 
 if You wish to allow alias auto completion run:
 
@@ -53,22 +54,28 @@ if You wish to allow alias auto completion run:
 
     logit log --task JIRA-321 -f // will attempt to log time passed from latest snapshot for today
 ---
+<br>
 
 ## Available Commands
 
-### Root Level
+<br>
 
-| Command  | Description                       |
-| -------- | --------------------------------- |
-| log      | Log time to a Jira task           |
-| config   | Set of configuration commands     |
-| alias    | Set of alias commands             |
-| start    | Start time measure in this moment |
-| worklogs | List worklogs You created         |
-| tasks    | List tasks assigned to You        |
-| help     | Show help for any command         |
+## Root Level
 
-### Config Level
+| Command                 | Description                       |
+| ----------------------- | --------------------------------- |
+| log                     | Log time to a Jira task           |
+| config                  | Set of configuration commands     |
+| alias                   | Set of alias commands             |
+| start                   | Start time measure in this moment |
+| worklogs                | List most recent worklogs         |
+| open [alias \| taskKey] | Open specified task in browser    |
+| tasks                   | List tasks assigned to You        |
+| help                    | Show help for any command         |
+
+<br>
+
+## Config Level
 
 | Command                          | Description                                                                                                                   |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -80,7 +87,9 @@ if You wish to allow alias auto completion run:
 | config trustGitBranch            | Change value of trust git branch variable (if `true` logit will not prompt for approve of task key extracted from git branch) |
 | config help                      | Show help for any command                                                                                                     |
 
-### Alias Level
+<br>
+
+## Alias Level
 
 | Command                  | Description               |
 | ------------------------ | ------------------------- |
@@ -89,9 +98,13 @@ if You wish to allow alias auto completion run:
 | alias list               | List saved aliasses       |
 | alias help               | Show help for any command |
 
+<br>
+
 ---
 
-## Log Flags
+<br>
+
+### log Flags
 
 | Flag        | Flag shorthand | Description                                                                                                   | Example                     |
 | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------- |
@@ -105,8 +118,9 @@ if You wish to allow alias auto completion run:
 | --reset     | -r             | If used with `hours` or `minutes` flags forces to reset snapshot on time log                                  | --reset                     |
 | --force     | -f             | Forces all boolean prompts to pass                                                                            | -f                          |
 
+<br>
 
-## Worklogs Flags
+### worklogs Flags
 
 | Flag        | Flag shorthand | Description                                                   | Example     |
 | ----------- | -------------- | ------------------------------------------------------------- | ----------- |
@@ -114,7 +128,21 @@ if You wish to allow alias auto completion run:
 | --yesterday | -y             | Return worklogs from today and yesterday                      | --yesterday |
 | --week      | -w             | Return worklogs from last week                                | --week      |
 | --days      | -d             | Return worklogs from X last days (X must be less or equal 14) | -d 10       |
+
+<br>
+
+### open Flags
+
+| Flag    | Flag shorthand | Description                                                                      | Example         |
+| ------- | -------------- | -------------------------------------------------------------------------------- | --------------- |
+| --task  | -t             | Jira task key / task url (if ommitted with `alias` flag git branch is inspected) | --task JIRA-123 |
+| --alias | -a             | Jira task key alias (if ommitted with `task` flag git branch is inspected)       | --alias myTask  |
+
+<br>
+
 ---
+
+<br>
 
 ## Configuration
 
@@ -124,19 +152,31 @@ It automatically creates a file at `~/.logit/config.yml` on first use.
 
 Feel free to edit it by hand but its safer to use config commands.
 
+<br>
+
 ---
+
+<br>
 
 ## Running Tests
 
     make test
 
+<br>
+
 ---
+
+<br>
 
 ## Contributing
 
 Please open an issue if You'd like to see something added or fixed.
 
+<br>
+
 ---
+
+<br>
 
 ## License
 

@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const provideTaskMessage = "Provide task ID or task URL:"
+const provideTaskMessage = "Provide task key or task URL:"
 
 func extractJiraTaskKey(arg string) (string, error) {
 	re := regexp.MustCompile(`([A-Z]+-\d+)`)
@@ -31,7 +31,7 @@ func promptForTask(prompter prompter.Prompter, msg string) (string, error) {
 	return extractJiraTaskKey(userPromptedMessage)
 }
 
-func determineTask(cmd *cobra.Command, config configuration.Config, prompter prompter.Prompter, gitHandler git.GitHandler) (string, error) {
+func determineTask(cmd *cobra.Command, config configuration.Config, prompter prompter.Prompter, gitHandler git.GitHandler, force bool) (string, error) {
 	resultTask := ""
 	task, _ := cmd.Flags().GetString("task")
 	alias, _ := cmd.Flags().GetString("alias")
@@ -66,13 +66,12 @@ func determineTask(cmd *cobra.Command, config configuration.Config, prompter pro
 
 	resultTask, err = extractJiraTaskKey(gitBranch)
 	if err != nil {
-		return promptForTask(prompter, "Current branch name does not contain task ID.")
+		return promptForTask(prompter, "Current branch name does not contain task key.")
 	}
 
-	force, _ := cmd.Flags().GetBool("force")
 	proceed := config.GetTrustGitBranch() || force
 	if !proceed {
-		proceed, err = prompter.PromptForApprove((fmt.Sprintf("Detected task ID %s in current branch name.", resultTask)))
+		proceed, err = prompter.PromptForApprove((fmt.Sprintf("Detected task key %s in current branch name.", resultTask)))
 		if err != nil {
 			return promptForTask(prompter, "Error scanning proceed approve.")
 		}

@@ -41,6 +41,7 @@ func main() {
 	listAliasesCmd := commands.NewListAliasesCommand(config)
 
 	startTimerCmd := commands.NewStartTimerCommand(config, timer)
+	openCmd := commands.NewOpenCommand(config, prompter, gitHandler)
 
 	myTasksCmd := commands.NewMyTasksCommand(jiraClient)
 	myWorklogsCmd := commands.NewMyWorklogsCommand(jiraClient)
@@ -50,7 +51,7 @@ func main() {
 
 	aliasCmd.AddCommand(setAliasCmd, listAliasesCmd, removeAliasCmd)
 
-	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd, aliasCmd, myTasksCmd, myWorklogsCmd)
+	rootCmd.AddCommand(configCmd, logCmd, startTimerCmd, aliasCmd, myTasksCmd, myWorklogsCmd, openCmd)
 
 	rootCmd.Execute()
 }

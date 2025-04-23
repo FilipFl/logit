@@ -163,9 +163,8 @@ func TestDetermineTask(t *testing.T) {
 			cmd := &cobra.Command{}
 			cmd.Flags().String("task", tt.taskFlag, "")
 			cmd.Flags().String("alias", tt.aliasFlag, "")
-			cmd.Flags().Bool("force", tt.forceFlag, "")
 
-			task, err := determineTask(cmd, cfgHandlerMock, prompterMock, gitHandlerMock)
+			task, err := determineTask(cmd, cfgHandlerMock, prompterMock, gitHandlerMock, tt.forceFlag)
 
 			if tt.expectedError != nil {
 				assert.Equal(t, tt.expectedError, err)

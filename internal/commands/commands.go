@@ -2,7 +2,10 @@ package commands
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
+	"runtime"
 
 	"text/tabwriter"
 
@@ -30,6 +33,59 @@ func NewStartTimerCommand(cfg configuration.Config, timer timer.Timer) *cobra.Co
 			fmt.Println("Started to measure time.")
 		},
 	}
+}
+
+func NewOpenCommand(cfg configuration.Config, prompter prompter.Prompter, gitHandler git.GitHandler) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "open [alias | taskKey]",
+		Short: "Open task in browser",
+		Args:  cobra.MaximumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			var task string
+			var err error
+			if len(args) > 0 {
+				task, err = cfg.GetTaskFromAlias(args[0])
+				if err != nil {
+					task, _ = extractJiraTaskKey(args[0])
+				}
+			}
+			if task == "" {
+				task, err = determineTask(cmd, cfg, prompter, gitHandler, true)
+				if err != nil {
+					fmt.Println("Failed to open task:", err)
+					return
+				}
+			}
+			if cfg.GetJiraOrigin() == "" {
+				fmt.Println("Before trying to open browser configure Jira origin")
+				return
+			}
+			url := cfg.GetJiraOrigin() + "/browse/" + task
+			var comm *exec.Cmd
+			if runtime.GOOS == "darwin" {
+				comm = exec.Command("open", url)
+			} else {
+				comm = exec.Command("xdg-open", url)
+			}
+			comm.Stderr = io.Discard
+			comm.Stdout = io.Discard
+			comm.Stdin = nil
+			err = comm.Start()
+			if err != nil {
+				fmt.Println("Error opening browser:", err)
+			}
+		},
+	}
+	cmd.Flags().StringP("task", "t", "", "Jira task ID or URL")
+	cmd.Flags().StringP("alias", "a", "", "Task by alias")
+	cmd.RegisterFlagCompletionFunc("alias", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		aliases := []string{}
+		for alias := range cfg.GetAliases() {
+			aliases = append(aliases, alias)
+		}
+		return aliases, cobra.ShellCompDirectiveNoFileComp
+	})
+	return cmd
 }
 
 func NewMyTasksCommand(client jira.Client) *cobra.Command {
@@ -101,7 +157,8 @@ func NewLogCommand(cfg configuration.Config, prompter prompter.Prompter, gitHand
 				return
 			}
 
-			task, err := determineTask(cmd, cfg, prompter, gitHandler)
+			force, _ := cmd.Flags().GetBool("force")
+			task, err := determineTask(cmd, cfg, prompter, gitHandler, force)
 			if err != nil {
 				fmt.Println("Error assessing task to log time:", err)
 				return

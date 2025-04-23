@@ -35,6 +35,7 @@ func main() {
 	setEmailCmd := configuration.NewSetEmailCommand(config)
 	initCmd := configuration.NewInitCommand(config, prompter)
 	trustGitBranchCmd := configuration.NewSwitchTrustGitBranchCommand(config)
+	showConfigCmd := configuration.NewShowConfigCommand(config)
 
 	setAliasCmd := commands.NewSetAliasCommand(config, prompter)
 	removeAliasCmd := commands.NewRemoveAliasCommand(config)
@@ -47,7 +48,7 @@ func main() {
 	myWorklogsCmd := commands.NewMyWorklogsCommand(jiraClient)
 	logCmd := commands.NewLogCommand(config, prompter, gitHandler, timer, jiraClient)
 
-	configCmd.AddCommand(setHostCmd, setTokenCmd, setTokenEnvNameCmd, setEmailCmd, initCmd, trustGitBranchCmd)
+	configCmd.AddCommand(setHostCmd, setTokenCmd, setTokenEnvNameCmd, setEmailCmd, initCmd, trustGitBranchCmd, showConfigCmd)
 
 	aliasCmd.AddCommand(setAliasCmd, listAliasesCmd, removeAliasCmd)
 

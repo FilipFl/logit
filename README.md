@@ -85,6 +85,7 @@ if You wish to allow alias auto completion run:
 | config set-token  [token]        | Set personal Jira token                                                                                                       |
 | config set-token-env-name [name] | Set name of environmental variable where logit can find jira token                                                            |
 | config trustGitBranch            | Change value of trust git branch variable (if `true` logit will not prompt for approve of task key extracted from git branch) |
+| config show                      | Print all config variables and their current value                                                                            |
 | config help                      | Show help for any command                                                                                                     |
 
 <br>

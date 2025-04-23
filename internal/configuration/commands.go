@@ -75,7 +75,7 @@ func NewInitCommand(config Config, prompter prompter.Prompter) *cobra.Command {
 	return &cobra.Command{
 		Use:   "init",
 		Short: "Initialize config. Logit will prompt for Jira origin, and Your Jira PAT Access",
-		Args:  cobra.ExactArgs(0),
+		Args:  nil,
 		Run: func(cmd *cobra.Command, args []string) {
 			origin, err := prompter.PromptForString("", "Please enter Jira origin (schema + host): ")
 			if err != nil {
@@ -133,7 +133,7 @@ func NewSwitchTrustGitBranchCommand(config Config) *cobra.Command {
 	return &cobra.Command{
 		Use:   "trustGitBranch",
 		Short: "Switch value of trustGitBranch variable - if true logit will not prompt for confirmation of a task extracted from git branch",
-		Args:  cobra.ExactArgs(0),
+		Args:  nil,
 		Run: func(cmd *cobra.Command, args []string) {
 			err := config.SwapTrustGitBranch()
 			if err != nil {
@@ -143,6 +143,25 @@ func NewSwitchTrustGitBranchCommand(config Config) *cobra.Command {
 				fmt.Println("logit will automatically extract task from git branch and wont ask for confirmation")
 			} else {
 				fmt.Println("logit will prompt for confirmation of a task extracted from git branch")
+			}
+		},
+	}
+}
+
+func NewShowConfigCommand(config Config) *cobra.Command {
+	return &cobra.Command{
+		Use:   "show",
+		Short: "Show config",
+		Args:  nil,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("Jira Origin:", config.GetJiraOrigin())
+			fmt.Println("Jira Email:", config.GetJiraEmail())
+			fmt.Println("Jira Token:", config.GetJiraToken())
+			fmt.Println("Jira Token Environmental variable name:", config.GetJiraTokenEnvName())
+			fmt.Println("TrustGitBranch:", config.GetTrustGitBranch())
+			fmt.Println("Aliases:")
+			for key, value := range config.GetAliases() {
+				fmt.Printf("   %s: %s\n", key, value)
 			}
 		},
 	}

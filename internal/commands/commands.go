@@ -134,7 +134,7 @@ func NewMyWorklogsCommand(client jira.Client) *cobra.Command {
 				for _, log := range day.Worklogs {
 					fmt.Fprintf(w, "%s\t%s\t%s\t\n", log.TaskKey, log.StringLoggedTime(), truncateString(log.Summary, 40))
 				}
-				printer.PrintGreen(fmt.Sprintf("%s (%s) - %dh %dm\n", day.DateString(), day.Date.Weekday(), int(day.TimeLogged.Hours()), int(day.TimeLogged)%60))
+				printer.PrintGreen(fmt.Sprintf("%s (%s) - %dh %dm\n", day.DateString(), day.Date.Weekday(), int(day.TimeLogged.Hours()), int(day.TimeLogged.Minutes())%60))
 				w.Flush()
 			}
 		},

@@ -30,12 +30,12 @@ func NewSetAliasCommand(config configuration.Config, prompter prompter.Prompter)
 					return
 				}
 			}
-			err = config.AddAlias(args[0], args[1])
+			err = config.AddAlias(args[0], taskKey)
 			if err != nil {
 				fmt.Println("Failed setting alias:", err)
 				return
 			}
-			fmt.Printf("Alias %s set for task %s\n", args[0], args[1])
+			fmt.Printf("Alias %s set for task %s\n", args[0], taskKey)
 		},
 	}
 }
